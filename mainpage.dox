@@ -2,9 +2,9 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b pose_twist_ekf is ... 
+\b pose_twist_meskf is ...
 
-<!-- 
+<!--
 Provide an overview of your package.
 -->
 
