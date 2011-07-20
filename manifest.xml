@@ -1,0 +1,30 @@
+<package>
+  <description brief="pose_twist_ekf">
+
+     Extended Kalman filter to estimate robot pose and twist, using inertial and visual sensors.
+     
+     Actually it is an implementation of an error-state Kalman filter (ESKF),
+     with multipiclative orientation error modelling.
+     
+     Imu's gyroscope and accelerometer readings are treated as control inputs.
+     Visual pose estimates are treated as measurements.
+     
+     For portability the filter is implemented using the Bayesian Filter Library.
+     The Eigen library is used for matrix computations.
+
+  </description>
+  <author>Joan Pau Beltran</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/pose_twist_ekf</url>
+  <depend package="roscpp"/>
+  <depend package="nav_msgs"/>
+  <depend package="memsense_imu"/>
+  <depend package="bfl"/>
+  <depend package="nodelet"/>
+  <depend package="eigen" />
+
+
+</package>
+
+
