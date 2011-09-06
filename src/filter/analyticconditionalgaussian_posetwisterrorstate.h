@@ -33,6 +33,7 @@
 
 #include <pdf/analyticconditionalgaussian_additivenoise.h>
 #include <Eigen/Dense>
+#include "nominal_state_vector.h"
 
 namespace BFL
 {
@@ -43,43 +44,43 @@ class AnalyticConditionalGaussianPoseTwistErrorState
 public:
   // Default constructor specifying system noise.
   AnalyticConditionalGaussianPoseTwistErrorState(const double& acc_var,
-                                                 const double& gyro_var);
+                                                 const double& gyro_var,
+                                                 const double& acc_bias_var,
+                                                 const double& gyro_drift_var);
 
   // Error state filtering specific functions.
   void NominalStateSet(const MatrixWrapper::ColumnVector& x);
   MatrixWrapper::ColumnVector NominalStateGet();
-  void ErrorStateSet(const MatrixWrapper::ColumnVector& x);
-  MatrixWrapper::ColumnVector ErrorStateGet();
-  void ResetErrorState();
+  void CorrectNominalState(const MatrixWrapper::ColumnVector& e);
 
   // redefine virtual functions.
   virtual MatrixWrapper::ColumnVector ExpectedValueGet() const;
   virtual MatrixWrapper::Matrix dfGet(unsigned int i) const;
+  virtual MatrixWrapper::SymmetricMatrix CovarianceGet() const;
 
   virtual ~AnalyticConditionalGaussianPoseTwistErrorState();
 
 private:
-  // Nominal state
-  mutable Eigen::Vector3d pose_;           //!< pose in reference frame.
-  mutable Eigen::Quaterniond orientation_; //!< orientation in reference frame.
-  mutable Eigen::Vector3d lin_vel_;        //!< linear velocity in body-fixed frame.
-  mutable Eigen::Vector3d acc_bias_;       //!< accelerometers' bias.
-  mutable Eigen::Vector3d gyro_drift_;     //!< gyroscopes' drift.
-  mutable Eigen::Vector3d ang_vel_;        //!< angular velocity in body-fixed frame.
-  mutable Eigen::Vector3d lin_acc_;        //!< linear acceleration in body-fixed frame.
 
-  // Error state
-  mutable Eigen::Vector3d d_pose_;           //!< pose in reference frame.
-  mutable Eigen::Quaterniond d_orientation_; //!< orientation in reference frame.
-  mutable Eigen::Vector3d d_lin_vel_;        //!< linear velocity in body-fixed frame.
-  mutable Eigen::Vector3d d_acc_bias_;       //!< accelerometers' bias.
-  mutable Eigen::Vector3d d_gyro_drift_;     //!< gyroscopes' drift.
+  // Nominal state
+  mutable pose_twist_meskf::NominalStateVector nominal_state_;
+
+  // Error state not needed because it is stored in the filter pdf.
+  // In addition, the error state is always zero since it is only modified
+  // by a measurement update, and after that the reset step transfers
+  // its values to the nominal state and sets it to zero again.
 
   // Gravity constant vector in reference frame
   static const double G_CONS;  //!< standard gravity scalar constant.
   static const Eigen::Vector3d G_VECT; //!< standard gravity vector.
 
   static const double ANGULAR_RATE_EPSILON;  //!< tolerance for small angle approximations.
+
+  // Sensor variances
+  const double ACC_VAR_;        //!< Accelerometer variance.
+  const double GYRO_VAR_;       //!< Gyroscope variance.
+  const double ACC_BIAS_VAR_;   //!< Accelerometer variance.
+  const double GYRO_DRIFT_VAR_; //!< Gyroscope variance.
 
   // Auxiliar functions:
   Eigen::Matrix3d skew(const Eigen::Vector3d& v) const;

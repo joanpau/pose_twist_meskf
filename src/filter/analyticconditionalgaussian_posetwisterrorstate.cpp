@@ -47,7 +47,8 @@
  */
 
 #include "analyticconditionalgaussian_posetwisterrorstate.h"
-#include "vector_conversions.h"
+#include "error_state_vector.h"
+#include "input_vector.h"
 
 const double BFL::AnalyticConditionalGaussianPoseTwistErrorState::G_CONS = 9.80665;
 const Eigen::Vector3d
@@ -78,15 +79,31 @@ skew(const Eigen::Vector3d& v) const
  * @return
  */
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::
-AnalyticConditionalGaussianPoseTwistErrorState(const Gaussian& noise)
-: AnalyticConditionalGaussianAdditiveNoise(noise, 2) // 2 conditional arguments
+AnalyticConditionalGaussianPoseTwistErrorState(const double& acc_var,
+                                               const double& gyro_var,
+                                               const double& acc_bias_var,
+                                               const double& gyro_drift_var)
+: AnalyticConditionalGaussian(pose_twist_meskf::ErrorStateVector::DIMENSION,2), // 2 conditional arguments
+  ACC_VAR_(acc_var),
+  GYRO_VAR_(gyro_var),
+  ACC_BIAS_VAR_(acc_bias_var),
+  GYRO_DRIFT_VAR_(gyro_drift_var)
 {}
 
 
 /**
- * @brief Transfer the error to the nominal state and reset it.
+ * @brief Destructor (doing nothing).
+ * @return
+ */
+BFL::AnalyticConditionalGaussianPoseTwistErrorState::
+~AnalyticConditionalGaussianPoseTwistErrorState()
+{}
+
+
+/**
+ * @brief Correct nominal state with given error.
  *
- * The update is performed according to these rules:
+ * The correction is performed according to these rules:
  * - pose:
  *      p_t = p + dp
  * - orientation:
@@ -103,26 +120,23 @@ AnalyticConditionalGaussianPoseTwistErrorState(const Gaussian& noise)
  *      w_t = w_s - d - dd
  */
 void BFL::AnalyticConditionalGaussianPoseTwistErrorState::
-ResetErrorState()
+CorrectNominalState(const MatrixWrapper::ColumnVector& e)
 {
-  // Correct the nominal state.
-  pose_ += d_pose_;
-  orientation_ *= Eigen::Quaterniond(Eigen::AngleAxisd(d_orientation_.norm(),
-                                                       d_orientation_.normalized()));
-  // orientation_.normalize();
-  lin_vel_ += d_lin_vel_;
-  acc_bias_ += d_acc_bias_;
-  gyro_drift_ += d_gyro_drift_;
-  lin_acc_ += d_acc_bias_;
-  ang_vel_ -= d_gyro_drift_;
+  pose_twist_meskf::ErrorStateVector error_;
+  error_.fromVector(e);
 
-  // Reset the error state.
-  d_pose_ = 0.0;
-  d_orientation_ = 0.0;
-  d_lin_vel_ = 0.0;
-  d_acc_bias_ = 0.0;
-  d_gyro_drift_ = 0.0;
+  // Correct the nominal state.
+  nominal_state_.pose_ += error_.d_pose_;
+  nominal_state_.lin_vel_ += error_.d_lin_vel_;
+  nominal_state_.orientation_ *= Eigen::Quaterniond(Eigen::AngleAxisd(error_.d_orientation_.norm(),
+                                                                      error_.d_orientation_.normalized()));
+  // orientation_.normalize();
+  nominal_state_.acc_bias_ += error_.d_acc_bias_;
+  nominal_state_.gyro_drift_ += error_.d_gyro_drift_;
+  nominal_state_.lin_acc_ += error_.d_acc_bias_;
+  nominal_state_.ang_vel_ -= error_.d_gyro_drift_;
 }
+
 
 /**
  * @brief Set the current nominal state.
@@ -132,10 +146,7 @@ void
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::
 NominalStateSet(const MatrixWrapper::ColumnVector& x)
 {
-  pose_twist_meskf::decomposeNominalState(x,
-                                          pose_,orientation_,lin_vel_,
-                                          acc_bias_,gyro_drift_,
-                                          ang_vel_,lin_acc_);
+  nominal_state_.fromVector(x);
 }
 
 /**
@@ -145,13 +156,11 @@ NominalStateSet(const MatrixWrapper::ColumnVector& x)
 MatrixWrapper::ColumnVector
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
 {
-  MatrixWrapper::ColumnVector x(pose_twist_meskf::NOMINAL_STATE_DIM);
-  pose_twist_meskf::composeNominalState(x,
-                                        pose_,orientation_,lin_vel_,
-                                        acc_bias_,gyro_drift_,
-                                        ang_vel_,lin_acc_);
+  MatrixWrapper::ColumnVector x(pose_twist_meskf::NominalStateVector::DIMESION);
+  nominal_state_.toVector(x);
   return x;
 }
+
 
 /**
  * @brief Update the error state and implicitly the nominal state.
@@ -193,29 +202,24 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
 MatrixWrapper::ColumnVector
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
 {
-  // Get the values of the current state and input.
-  ColumnVector e = ConditionalArgumentGet(0);
-  ColumnVector u = ConditionalArgumentGet(1);
-
   // Update the nominal state following the above rules.
-  Eigen::Vector3d w_s, a_s;
-  double dt;
-  pose_twist_meskf::decomposeInput(u,w_s,a_s,dt);
-  const double dt2 = dt*dt;
+  pose_twist_meskf::InputVector input;
+  input.fromVector(ConditionalArgumentGet(1));
 
-  Eigen::Matrix3d R = orientation_.toRotationMatrix();
-
-  lin_acc_ = R.transpose()*G_VECT - a_s + acc_bias_;
-  ang_vel_ = w_s - gyro_drift_;
-
-  const double rate = ang_vel_.norm();
+  const double dt = input.time_incr_;
+  const double dt2 = pow(dt,2);
+  const double rate = nominal_state_.ang_vel_.norm();
+  const Eigen::Vector3d axis = nominal_state_.ang_vel_.normalized();
   const double angle = dt*rate;
-  const Eigen::Vector3d axis = ang_vel_.normalized();
   Eigen::AngleAxisd angle_axis(angle,axis);
 
-  pose_ += R*(dt*lin_vel_ + 0.5*dt2*lin_acc_);
-  lin_vel_ += dt*lin_acc_;
-  orientation_*= Eigen::Quaterniond(angle_axis);
+  Eigen::Matrix3d R = nominal_state_.orientation_.toRotationMatrix();
+
+  nominal_state_.lin_acc_ = R.transpose()*G_VECT - input.lin_acc_ + nominal_state_.acc_bias_;
+  nominal_state_.ang_vel_ = input.ang_vel_ - nominal_state_.gyro_drift_;
+  nominal_state_.pose_ += R*(dt*nominal_state_.lin_vel_ + 0.5*dt2*nominal_state_.lin_acc_);
+  nominal_state_.lin_vel_ += dt*nominal_state_.lin_acc_;
+  nominal_state_.orientation_*= Eigen::Quaterniond(angle_axis);
   // orientation_.normalize();
   // gyro_drift_ and acc_bias_ are constant, so keep their value.
 
@@ -223,29 +227,221 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
   // If the error state is zero (it should be because of the reset)
   // the update will not change it.
   // However these are the equations:
-  pose_twist_meskf::decomposeErrorState(e,
-                                        d_pose_, d_orientation_, d_lin_vel_,
-                                        d_acc_bias_, d_gyro_drift_);
-  d_pose_ += dt*R*d_lin_vel_ - dt*R*lin_vel_.cross(d_orientation_)
-           + 0.5*dt2*lin_acc_.cross(d_orientation_)
-           + 0.5*dt2*R*d_acc_bias_;
-  d_lin_vel_ += dt*skew(R.transpose()*G_VECT)*d_orientation_ + dt*d_acc_bias_;
-  const Eigen::Matrix3d I = Eigen::Matrix3d::Identity(3,3);
-  const Eigen::Matrix3d S = skew(ang_vel_);
+  pose_twist_meskf::ErrorStateVector error;
+  error.fromVector(ConditionalArgumentGet(0));
+  error.d_pose_ += dt*R*error.d_lin_vel_
+                - dt*R*nominal_state_.lin_vel_.cross(error.d_orientation_)
+                + 0.5*dt2*nominal_state_.lin_acc_.cross(error.d_orientation_)
+                + 0.5*dt2*R*error.d_acc_bias_;
+  error.d_lin_vel_ += dt*skew(R.transpose()*G_VECT)*error.d_orientation_
+                   + dt*error.d_acc_bias_;
+
+  const double dt3 = pow(dt,3);
+  const double rate2 = pow(rate,2);
+  const double rate3 = pow(rate,3);
+  const double cos_angle = cos(angle);
+  const double sin_angle = sin(angle);
+
+  const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+  const Eigen::Matrix3d S = skew(nominal_state_.ang_vel_);
   const Eigen::Matrix3d S2 = S*S;
   const Eigen::Matrix3d TH = angle_axis.toRotationMatrix().transpose();
-                        // = I - (sin(angle)/rate)*S + ((1-cos(angle))/pow(rate,2))*S2
+                        // = I - sin_angle/rate*S + (1-cos_angle)/rate2*S2
                         // ~ I - dt*S + 0.5*dt2*S2
-  const Eigen::Matrix3d PS = ( rate < ANGULAR_RATE_EPSILON )
-                             ? - dt*I
-                             : - dt*I + ((1-cos(angle))/pow(rate,2))*S - ((angle-sin(angle))/pow(rate,3))*S2;
-  d_orientation_ = TH*d_orientation_ + PS*d_gyro_drift_;
+  const Eigen::Matrix3d PS =
+      ( rate < ANGULAR_RATE_EPSILON )
+      ? ( - dt*I + dt2/2.0*S - dt3/6.0*S2 )
+      : ( - dt*I + (1-cos_angle)/rate2*S - (angle-sin_angle)/rate3*S2 );
+
+  error.d_orientation_ = TH*error.d_orientation_ + PS*error.d_gyro_drift_;
   // gyro_drift_ and acc_bias_ are constant, so their errors keep their value.
 
-  pose_twist_meskf::composeErrorState(e,
-                                      d_pose_, d_orientation_, d_lin_vel_,
-                                      d_acc_bias_, d_gyro_drift_);
+  MatrixWrapper::ColumnVector e(pose_twist_meskf::ErrorStateVector::DIMENSION);
+  error.toVector(e);
   return e;
 }
 
-MatrixWrapper::Matrix dfGet(unsigned int i) const;
+
+/**
+ * @brief Return the Jacobian of the state transition function.
+ *
+ * Only implemented for the first conditional argument (the previous state).
+ * The matrix is build according to the equations in ExpectedValueGet().
+ * Some values are approximated by simpler expressions when the angular rate
+ * is smaller than ANGULAR_RATE_EPSILON.
+ *
+ * @param i conditional argument index.
+ * @return the state transition matrix.
+ */
+MatrixWrapper::Matrix BFL::AnalyticConditionalGaussianPoseTwistErrorState::
+dfGet(unsigned int i) const
+{
+  if(i!=0)
+  {
+    cerr << "The df is not implemented for the" << i << "th conditional argument\n";
+    exit(-BFL_ERRMISUSE);
+  }
+
+  pose_twist_meskf::InputVector input;
+  input.fromVector(ConditionalArgumentGet(1));
+
+  const double dt = input.time_incr_;
+  const double dt2 = pow(dt,2);
+  const double rate = nominal_state_.ang_vel_.norm();
+  const Eigen::Vector3d axis = nominal_state_.ang_vel_.normalized();
+  const double angle = dt*rate;
+  Eigen::AngleAxisd angle_axis(angle,axis);
+
+  const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+  Eigen::Matrix3d R = nominal_state_.orientation_.toRotationMatrix();
+
+  const Eigen::Matrix3d dp_dp = I;
+  const Eigen::Matrix3d dp_dq = - dt*R*skew(nominal_state_.lin_vel_)
+                                + 0.5*dt2*skew(nominal_state_.lin_acc_);
+  const Eigen::Matrix3d dp_dv = dt*R;
+  const Eigen::Matrix3d dp_db = 0.5*dt2*R;
+  const Eigen::Matrix3d dv_dv = I;
+  const Eigen::Matrix3d dv_dq = dt*skew(R.transpose()*G_VECT);
+  const Eigen::Matrix3d dv_db = dt*I;
+
+  const double dt3 = pow(dt,3);
+  const double rate2 = pow(rate,2);
+  const double rate3 = pow(rate,3);
+  const double cos_angle = cos(angle);
+  const double sin_angle = sin(angle);
+
+  const Eigen::Matrix3d S = skew(nominal_state_.ang_vel_);
+  const Eigen::Matrix3d S2 = S*S;
+
+  const Eigen::Matrix3d dq_dq = angle_axis.toRotationMatrix().transpose();
+                        // = I - (sin(angle)/rate)*S + ((1-cos(angle))/pow(rate,2))*S2
+                        // ~ I - dt*S + 0.5*dt2*S2
+  const Eigen::Matrix3d dq_dd =
+      ( rate < ANGULAR_RATE_EPSILON )
+      ? ( - dt*I + dt2/2.0*S - dt3/6.0*S2 )
+      : ( - dt*I + (1-cos_angle)/rate2*S - (angle-sin_angle)/rate3*S2 );
+
+  const Eigen::Matrix3d db_db = I;
+  const Eigen::Matrix3d dd_dd = I;
+
+  MatrixWrapper::Matrix dF(DimensionGet(),DimensionGet());
+  dF = 0.0;
+  for (int i=0; i<3; i++)
+    for (int j=0; j<3; j++)
+  {
+    // Pose:
+    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
+       pose_twist_meskf::ErrorStateVector::D_POSE_X + j) = dp_dp(i,j);
+    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dp_dq(i,j);
+    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
+       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dp_dv(i,j);
+    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dp_db(i,j);
+    // Velocity:
+    dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dv_dv(i,j);
+    dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dv_dq(i,j);
+    dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dv_db(i,j);
+    // Orientation:
+    dF(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dq_dq(i,j);
+    dF(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dq_dd(i,j);
+    // Accelerometers' bias:
+    dF(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = db_db(i,j);
+    // Gyroscopes' drift:
+    dF(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
+       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dd_dd(i,j);
+  }
+  return dF;
+}
+
+/**
+ * @brief Compute the noise covariance.
+ * The gyroscopes' output noise and drift noise
+ * is supposed to be independent, gaussian, and isotropic.
+ * Then, the covariance may be computed according to the second citation.
+ * Accelerometers' output noise and bias noise
+ * is supposed to be independent, gaussian, and isotropic too.
+ * But the covariance is only an approximation due to the system model
+ * complexity.
+ * @return the noise covariance.
+ */
+MatrixWrapper::SymmetricMatrix
+BFL::AnalyticConditionalGaussianPoseTwistErrorState::CovarianceGet() const
+{
+  pose_twist_meskf::InputVector input;
+  input.fromVector(ConditionalArgumentGet(1));
+  const double dt = input.time_incr_;
+  const double rate = nominal_state_.ang_vel_.norm();
+  const Eigen::Vector3d axis = nominal_state_.ang_vel_.normalized();
+  const double angle = dt*rate;
+
+  const Eigen::Matrix3d Qpp = Eigen::Matrix3d::Zero();
+  const Eigen::Matrix3d Qvv = dt*ACC_VAR_*Eigen::Matrix3d::Identity();
+
+  const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+  const Eigen::Matrix3d S = skew(nominal_state_.ang_vel_);
+  const Eigen::Matrix3d S2 = S*S;
+
+  const double dt2 = pow(dt,2);
+  const double dt3 = pow(dt,3);
+  const double dt4 = pow(dt,4);
+  const double dt5 = pow(dt,5);
+  const double rate3 = pow(rate,3);
+  const double rate4 = pow(rate,4);
+  const double rate5 = pow(rate,5);
+  const double angle2 = pow(angle,2);
+  const double angle3 = pow(angle,3);
+  const double cos_angle = cos(angle);
+  const double sin_angle = sin(angle);
+
+  const Eigen::Matrix3d Qqq = dt*GYRO_VAR_*Eigen::Matrix3d::Identity()
+                            + GYRO_DRIFT_VAR_*
+                            (
+                              ( rate < ANGULAR_RATE_EPSILON )
+                              ? ( dt3/3.0*I + dt5/60.0*S2 )
+                              : ( dt3/3.0*I + (angle3/3.0+2.0*(sin_angle-angle))/rate5*S2 )
+                            );
+  const Eigen::Matrix3d Qqd = -GYRO_DRIFT_VAR_*
+                            (
+                              ( rate < ANGULAR_RATE_EPSILON )
+                              ? ( dt2/2.0*I - dt3/6.0*S + dt4/24.0*S2)
+                              : ( dt2/2.0*I - (angle-sin_angle)/rate3*S + (angle2/2.0+cos_angle-1)/rate4*S2 )
+                            );
+
+  const Eigen::Matrix3d Qbb = dt*ACC_BIAS_VAR_*I;
+  const Eigen::Matrix3d Qdd = dt*GYRO_DRIFT_VAR_*I;
+
+  MatrixWrapper::SymmetricMatrix Q(DimensionGet());
+  Q = 0.0;
+
+  for (int i=0; i<3; i++)
+    for (int j=0; j<3; j++)
+    {
+      // Position:
+      Q(pose_twist_meskf::ErrorStateVector::D_POSE_X+i,
+        pose_twist_meskf::ErrorStateVector::D_POSE_X+j) = Qpp(i,j);
+      // Velocity:
+      Q(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+i,
+        pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+j) = Qvv(i,j);
+      // Orientation:
+      Q(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
+        pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqq(i,j);
+      Q(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
+        pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+j) = Qqd(i,j);
+      // Accelerometers' bias:
+      Q(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X+i,
+        pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X+j) = Qbb(i,j);
+      // Gyroscopes' drift:
+      Q(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+i,
+        pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+j) = Qdd(i,j);
+      Q(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+i,
+        pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqd(j,i);
+    }
+  return Q;
+}

@@ -11,7 +11,7 @@
 #define ERROR_STATE_VECTOR_H
 
 #include <wrappers/matrix/vector_wrapper.h> // BFL vector class
-#include <Eigen/Core> // Eigen vector and quaternion classes
+#include <Eigen/Geometry> // Eigen vector and quaternion classes
 
 namespace pose_twist_meskf
 {
@@ -25,8 +25,8 @@ struct ErrorStateVector
   void toVector(MatrixWrapper::ColumnVector& e) const;
 
   Eigen::Vector3d d_pose_;           //!< Pose error.
-  Eigen::Quaterniond d_orientation_; //!< Orientation error.
   Eigen::Vector3d d_lin_vel_;        //!< Linear velocity error.
+  Eigen::Vector3d d_orientation_;    //!< Orientation error.
   Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error.
   Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error.
 
@@ -37,12 +37,12 @@ struct ErrorStateVector
     D_POSE_X = 1,
     D_POSE_Y,
     D_POSE_Z,
-    D_ORIENTATION_X,
-    D_ORIENTATION_Y,
-    D_ORIENTATION_Z,
     D_LIN_VEL_X,
     D_LIN_VEL_Y,
     D_LIN_VEL_Z,
+    D_ORIENTATION_X,
+    D_ORIENTATION_Y,
+    D_ORIENTATION_Z,
     D_ACC_BIAS_X,
     D_ACC_BIAS_Y,
     D_ACC_BIAS_Z,
