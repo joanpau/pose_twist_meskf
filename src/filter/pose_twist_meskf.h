@@ -44,6 +44,11 @@ public:
   PoseTwistMESKF();
   virtual ~PoseTwistMESKF();
 
+  TimeStamp getTimeStamp() const;
+  SymmetricMatrix getCovariance() const;
+  Vector getEstimate() const;
+  void getEstimate(Vector& x, SymmetricMatrix& P, TimeStamp& t) const;
+
   void setUpSystem(const double& acc_var,
                    const double& gyro_var,
                    const double& acc_bias_var,
@@ -54,12 +59,8 @@ public:
   bool addInput(const TimeStamp& t, const Vector& u);
   bool addMeasurement(const MeasurementIndex& i, const TimeStamp& t,
                       const Vector& z, const SymmetricMatrix Q);
-  void update();
 
-  TimeStamp getTimeStamp() const;
-  SymmetricMatrix getCovariance() const;
-  Vector getEstimate() const;
-  void getEstimate(Vector& x, SymmetricMatrix& P, TimeStamp& t) const;
+  void update();
 
 private:
 

@@ -45,6 +45,56 @@ pose_twist_meskf::PoseTwistMESKF::~PoseTwistMESKF()
       delete measurement_pdfs_[i];
 }
 
+
+/**
+ * @brief Get the the current filter time.
+ * @return the time stamp of the last processed input.
+ */
+pose_twist_meskf::PoseTwistMESKF::TimeStamp
+pose_twist_meskf::PoseTwistMESKF::getTimeStamp() const
+{
+  return current_time_;
+};
+
+
+/**
+ * @brief Get the covariance of the current error state.
+ * @return current error state covariance matrix.
+ */
+pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
+pose_twist_meskf::PoseTwistMESKF::getCovariance() const
+{
+  return filter_->PostGet()->CovarianceGet();
+}
+
+
+/**
+ * Get the current state estimate.
+ * @return current nominal state vector.
+ */
+pose_twist_meskf::PoseTwistMESKF::Vector
+pose_twist_meskf::PoseTwistMESKF::getEstimate() const
+{
+  return system_pdf_->NominalStateGet();
+}
+
+
+/**
+ * @brief Get estimation with time stamp and covariance.
+ * @param x vector to store the current state.
+ * @param P matrix to store the current covariance.
+ * @param t current filter time.
+ */
+void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
+                                                   SymmetricMatrix& P,
+                                                   TimeStamp& t) const
+{
+  x = getEstimate();
+  P = getCovariance();
+  t = getTimeStamp();
+}
+
+
 void pose_twist_meskf::PoseTwistMESKF::setUpSystem(const double& acc_var,
                                                    const double& gyro_var,
                                                    const double& acc_bias_var,
@@ -227,51 +277,3 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& 
   return success;
 }
 
-
-/**
- * @brief Get the the current filter time.
- * @return the time stamp of the last processed input.
- */
-pose_twist_meskf::PoseTwistMESKF::TimeStamp
-pose_twist_meskf::PoseTwistMESKF::getTimeStamp() const
-{
-  return current_time_;
-};
-
-
-/**
- * @brief Get the covariance of the current error state.
- * @return current error state covariance matrix.
- */
-pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
-pose_twist_meskf::PoseTwistMESKF::getCovariance() const
-{
-  return filter_->PostGet()->CovarianceGet();
-}
-
-
-/**
- * Get the current state estimate.
- * @return current nominal state vector.
- */
-pose_twist_meskf::PoseTwistMESKF::Vector
-pose_twist_meskf::PoseTwistMESKF::getEstimate() const
-{
-  return system_pdf_->NominalStateGet();
-}
-
-
-/**
- * @brief Get estimation with time stamp and covariance.
- * @param x vector to store the current state.
- * @param P matrix to store the current covariance.
- * @param t current filter time.
- */
-void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
-                                                   SymmetricMatrix& P,
-                                                   TimeStamp& t) const
-{
-  x = getEstimate();
-  P = getCovariance();
-  t = getTimeStamp();
-}
