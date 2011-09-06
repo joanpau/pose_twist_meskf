@@ -20,11 +20,40 @@ pose_twist_meskf::PoseTwistMESKF::PoseTwistMESKF()
 {}
 
 
-void pose_twist_meskf::PoseTwistMESKF::setUpSystem(const Vector& noise_mean,
-                                                   const SymmetricMatrix& noise_cov)
+/**
+ * @brief Destructor.
+ *
+ * Free dynamically allocated members if needed.
+ *
+ * @return
+ */
+pose_twist_meskf::PoseTwistMESKF::~PoseTwistMESKF()
 {
-  BFL::Gaussian system_noise(noise_mean, noise_cov);
-  system_pdf_ = new BFL::AnalyticConditionalGaussianPoseTwistErrorState(system_noise);
+  if (filter_)
+    delete filter_;
+  if (system_model_)
+    delete system_model_;
+  if(system_pdf_)
+    delete system_pdf_;
+  if(system_prior_)
+    delete system_prior_;
+  for (int i = measurement_models_.size(); i>=0; i--)
+    if(measurement_models_[i])
+      delete measurement_models_[i];
+  for (int i = measurement_pdfs_.size(); i>=0; i--)
+    if(measurement_pdfs_[i])
+      delete measurement_pdfs_[i];
+}
+
+void pose_twist_meskf::PoseTwistMESKF::setUpSystem(const double& acc_var,
+                                                   const double& gyro_var,
+                                                   const double& acc_bias_var,
+                                                   const double& gyro_drift_var)
+{
+  system_pdf_ = new BFL::AnalyticConditionalGaussianPoseTwistErrorState(acc_var,
+                                                                        gyro_var,
+                                                                        acc_bias_var,
+                                                                        gyro_drift_var);
   system_model_ = new BFL::AnalyticSystemModelGaussianUncertainty(system_pdf_);
 }
 
@@ -49,7 +78,7 @@ void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
   prior_mean = 0;
   prior_cov = P;
   system_prior_ = new BFL::Gaussian(prior_mean, prior_cov);
-  filter_ = new BFL::ExtendedKalmanFilter(system_prior_);
+  filter_ = new BFL::ExtendedKalmanFilterResetCapable(system_prior_);
   system_pdf_->NominalStateSet(x);
   current_time_ = t;
 }
@@ -191,6 +220,58 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& 
     success = filter_->Update(measurement_models_[i],measurement_val);
   }
   if (success)
-    system_pdf_->ResetErrorState();
+  {
+    system_pdf_->CorrectNominalState(filter_->PostGet()->ExpectedValueGet());
+    filter_->PostMuSet(MatrixWrapper::ColumnVector(system_pdf_->DimensionGet(),0.0));
+  }
   return success;
+}
+
+
+/**
+ * @brief Get the the current filter time.
+ * @return the time stamp of the last processed input.
+ */
+pose_twist_meskf::PoseTwistMESKF::TimeStamp
+pose_twist_meskf::PoseTwistMESKF::getTimeStamp() const
+{
+  return current_time_;
+};
+
+
+/**
+ * @brief Get the covariance of the current error state.
+ * @return current error state covariance matrix.
+ */
+pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
+pose_twist_meskf::PoseTwistMESKF::getCovariance() const
+{
+  return filter_->PostGet()->CovarianceGet();
+}
+
+
+/**
+ * Get the current state estimate.
+ * @return current nominal state vector.
+ */
+pose_twist_meskf::PoseTwistMESKF::Vector
+pose_twist_meskf::PoseTwistMESKF::getEstimate() const
+{
+  return system_pdf_->NominalStateGet();
+}
+
+
+/**
+ * @brief Get estimation with time stamp and covariance.
+ * @param x vector to store the current state.
+ * @param P matrix to store the current covariance.
+ * @param t current filter time.
+ */
+void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
+                                                   SymmetricMatrix& P,
+                                                   TimeStamp& t) const
+{
+  x = getEstimate();
+  P = getCovariance();
+  t = getTimeStamp();
 }

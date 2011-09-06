@@ -10,16 +10,29 @@
 #define POSE_TWIST_MESKF_H
 
 #include <queue>
-#include <filter/extendedkalmanfilter.h>
 #include <wrappers/matrix/matrix_wrapper.h>
 #include <wrappers/matrix/vector_wrapper.h>
 #include <model/analyticsystemmodel_gaussianuncertainty.h>
 #include <model/analyticmeasurementmodel_gaussianuncertainty.h>
 #include "analyticconditionalgaussian_posetwisterrorstate.h"
+#include "extendedkalmanfilter_resetcapable.h"
 
 namespace pose_twist_meskf
 {
 
+/**
+ * @brief Multiplicative error-state Kalman filter class.
+ *
+ * The estimator has one internal queue for the inputs,
+ * and one internal queue for each measurement.
+ * Every input and measurement is added to the respective queue
+ * with the functions addInput() and addMeasurement().
+ * The input and measurement processing is delayed
+ * until a call to the function update(), when all inputs and measurements
+ * are processed sequentially according to its time stamp.
+ * To use the class first set up the system model with setUpSystem.
+ * Then the initial state should be set with initialize().
+ */
 class PoseTwistMESKF
 {
 public:
@@ -29,7 +42,12 @@ public:
   typedef int MeasurementIndex;
 
   PoseTwistMESKF();
-  void setUpSystem(const Vector& noise_mean, const SymmetricMatrix& noise_cov);
+  virtual ~PoseTwistMESKF();
+
+  void setUpSystem(const double& acc_var,
+                   const double& gyro_var,
+                   const double& acc_bias_var,
+                   const double& gyro_drift_var);
 
   void initialize(const Vector& x, const SymmetricMatrix& P, const TimeStamp& t);
 
@@ -41,7 +59,7 @@ public:
   TimeStamp getTimeStamp() const;
   SymmetricMatrix getCovariance() const;
   Vector getEstimate() const;
-  void getEstimation(Vector& x, SymmetricMatrix& P, TimeStamp& t) const;
+  void getEstimate(Vector& x, SymmetricMatrix& P, TimeStamp& t) const;
 
 private:
 
@@ -63,10 +81,10 @@ private:
     Input(const TimeStamp& t, const Vector& u)
     :  t_(t), u_(u)
     {}
-    bool operator<(const Measurement& r) const {return t_ > r.t_;}
+    bool operator<(const Input& r) const {return t_ > r.t_;}
   };
 
-  BFL::ExtendedKalmanFilter*                           filter_;
+  BFL::ExtendedKalmanFilterResetCapable*               filter_;
   BFL::AnalyticSystemModelGaussianUncertainty*         system_model_;
   BFL::AnalyticConditionalGaussianPoseTwistErrorState* system_pdf_;
   BFL::Gaussian*                                       system_prior_;
