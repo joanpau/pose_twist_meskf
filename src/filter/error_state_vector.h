@@ -24,7 +24,7 @@ struct ErrorStateVector
   void fromVector(const MatrixWrapper::ColumnVector& e);
   void toVector(MatrixWrapper::ColumnVector& e) const;
 
-  Eigen::Vector3d d_pose_;           //!< Pose error.
+  Eigen::Vector3d d_position_;       //!< Position error.
   Eigen::Vector3d d_lin_vel_;        //!< Linear velocity error.
   Eigen::Vector3d d_orientation_;    //!< Orientation error.
   Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error.
@@ -34,9 +34,9 @@ struct ErrorStateVector
   static const int DIMENSION = 15; //!< Error state vector dimension.
   enum Index
   {
-    D_POSE_X = 1,
-    D_POSE_Y,
-    D_POSE_Z,
+    D_POSITION_X = 1,
+    D_POSITION_Y,
+    D_POSITION_Z,
     D_LIN_VEL_X,
     D_LIN_VEL_Y,
     D_LIN_VEL_Z,

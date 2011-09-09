@@ -24,7 +24,7 @@ struct NominalStateVector
   void fromVector(const MatrixWrapper::ColumnVector& x);
   void toVector(MatrixWrapper::ColumnVector& x) const;
 
-  Eigen::Vector3d pose_;           //!< Pose in reference frame.
+  Eigen::Vector3d position_;       //!< Position in reference frame.
   Eigen::Vector3d lin_vel_;        //!< Linear velocity in body-fixed frame.
   Eigen::Quaterniond orientation_; //!< Orientation in reference frame.
   Eigen::Vector3d acc_bias_;       //!< Accelerometers' bias.
@@ -36,9 +36,9 @@ struct NominalStateVector
   static const int DIMESION = 22;  //!< Nominal state vector dimension.
   enum Index
   {
-    POSE_X = 1,
-    POSE_Y,
-    POSE_Z,
+    POSITION_X = 1,
+    POSITION_Y,
+    POSITION_Z,
     LIN_VEL_X,
     LIN_VEL_Y,
     LIN_VEL_Z,

@@ -104,7 +104,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::
  * @brief Correct nominal state with given error.
  *
  * The correction is performed according to these rules:
- * - pose:
+ * - position:
  *      p_t = p + dp
  * - orientation:
  *      q_t = q * exp(1/2*dq)  with exp(1/2*dq) = [ cos(1/2*|dq|) , sin(1/2*|dq|) * dq/|dq| ]
@@ -126,7 +126,7 @@ CorrectNominalState(const MatrixWrapper::ColumnVector& e)
   error_.fromVector(e);
 
   // Correct the nominal state.
-  nominal_state_.pose_ += error_.d_pose_;
+  nominal_state_.position_ += error_.d_position_;
   nominal_state_.lin_vel_ += error_.d_lin_vel_;
   nominal_state_.orientation_ *= Eigen::Quaterniond(Eigen::AngleAxisd(error_.d_orientation_.norm(),
                                                                       error_.d_orientation_.normalized()));
@@ -170,7 +170,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
  *      a = R'g - a_s + b
  * - angular velocity:
  *      w = w_s - d   (angle turned = dt*|w| , axis turned = w / |w|)
- * - pose:
+ * - position:
  *      p_next = p + dt*R*v + 0.5*dt^2*[g - R*(a_s-b)] = p + dt*R*v + 0.5*dt^2*R*a
  * - orientation:
  *      q_next = q * q(angle turned, axis turned)
@@ -186,7 +186,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
  * (provided that the previous error is zero,
  * which always the case because of the filter reset).
  * In any case, these are the rules:
- * - pose:
+ * - position:
  *      dp_next = dp + dt*R*dv + (-dt*R*[v]_x* + 0.5*dt^2*a)*dq + 0.5*dt^2*R*db
  * - orientation:
  *      dq_next = R(angle turned, axis turned)'*dq
@@ -217,7 +217,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
 
   nominal_state_.lin_acc_ = R.transpose()*G_VECT - input.lin_acc_ + nominal_state_.acc_bias_;
   nominal_state_.ang_vel_ = input.ang_vel_ - nominal_state_.gyro_drift_;
-  nominal_state_.pose_ += R*(dt*nominal_state_.lin_vel_ + 0.5*dt2*nominal_state_.lin_acc_);
+  nominal_state_.position_ += R*(dt*nominal_state_.lin_vel_ + 0.5*dt2*nominal_state_.lin_acc_);
   nominal_state_.lin_vel_ += dt*nominal_state_.lin_acc_;
   nominal_state_.orientation_*= Eigen::Quaterniond(angle_axis);
   // orientation_.normalize();
@@ -229,7 +229,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
   // However these are the equations:
   pose_twist_meskf::ErrorStateVector error;
   error.fromVector(ConditionalArgumentGet(0));
-  error.d_pose_ += dt*R*error.d_lin_vel_
+  error.d_position_ += dt*R*error.d_lin_vel_
                 - dt*R*nominal_state_.lin_vel_.cross(error.d_orientation_)
                 + 0.5*dt2*nominal_state_.lin_acc_.cross(error.d_orientation_)
                 + 0.5*dt2*R*error.d_acc_bias_;
@@ -329,14 +329,14 @@ dfGet(unsigned int i) const
   for (int i=0; i<3; i++)
     for (int j=0; j<3; j++)
   {
-    // Pose:
-    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
-       pose_twist_meskf::ErrorStateVector::D_POSE_X + j) = dp_dp(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
+    // Position:
+    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+       pose_twist_meskf::ErrorStateVector::D_POSITION_X + j) = dp_dp(i,j);
+    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
        pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dp_dq(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
+    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
        pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dp_dv(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_POSE_X + i,
+    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
        pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dp_db(i,j);
     // Velocity:
     dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
@@ -424,8 +424,8 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::CovarianceGet() const
     for (int j=0; j<3; j++)
     {
       // Position:
-      Q(pose_twist_meskf::ErrorStateVector::D_POSE_X+i,
-        pose_twist_meskf::ErrorStateVector::D_POSE_X+j) = Qpp(i,j);
+      Q(pose_twist_meskf::ErrorStateVector::D_POSITION_X+i,
+        pose_twist_meskf::ErrorStateVector::D_POSITION_X+j) = Qpp(i,j);
       // Velocity:
       Q(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+i,
         pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+j) = Qvv(i,j);

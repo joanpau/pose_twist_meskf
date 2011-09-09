@@ -27,7 +27,7 @@ void pose_twist_meskf::InputVector::fromVector(const MatrixWrapper::ColumnVector
 
 /**
  * @brief Write the input entities to a BFL vector.
- * @param u vector to compose (should have the nominal state dimension).
+ * @param u vector to compose (should have the correct dimension).
  */
 void pose_twist_meskf::InputVector::toVector(MatrixWrapper::ColumnVector& u) const
 {

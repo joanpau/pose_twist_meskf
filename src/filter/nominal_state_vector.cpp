@@ -15,9 +15,9 @@
  */
 void pose_twist_meskf::NominalStateVector::fromVector(const MatrixWrapper::ColumnVector& x)
 {
-  pose_(0) = x(POSE_X);
-  pose_(1) = x(POSE_Y);
-  pose_(2) = x(POSE_Z);
+  position_(0) = x(POSITION_X);
+  position_(1) = x(POSITION_Y);
+  position_(2) = x(POSITION_Z);
   lin_vel_(0) = x(LIN_VEL_X);
   lin_vel_(1) = x(LIN_VEL_Y);
   lin_vel_(2) = x(LIN_VEL_Z);
@@ -42,13 +42,13 @@ void pose_twist_meskf::NominalStateVector::fromVector(const MatrixWrapper::Colum
 
 /**
  * @brief Write the nominal state entities to a BFL vector.
- * @param x vector to compose (should have the nominal state dimension).
+ * @param x vector to compose (should have the correct dimension).
  */
 void pose_twist_meskf::NominalStateVector::toVector(MatrixWrapper::ColumnVector& x) const
 {
-  x(POSE_X) = pose_(0);
-  x(POSE_Y) = pose_(1);
-  x(POSE_Z) = pose_(2);
+  x(POSITION_X) = position_(0);
+  x(POSITION_Y) = position_(1);
+  x(POSITION_Z) = position_(2);
   x(LIN_VEL_X) = lin_vel_(0);
   x(LIN_VEL_Y) = lin_vel_(1);
   x(LIN_VEL_Z) = lin_vel_(2);

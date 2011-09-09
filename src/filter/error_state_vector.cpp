@@ -15,9 +15,9 @@
  */
 void pose_twist_meskf::ErrorStateVector::fromVector(const MatrixWrapper::ColumnVector& e)
 {
-  d_pose_(0) = e(D_POSE_X);
-  d_pose_(1) = e(D_POSE_Y);
-  d_pose_(2) = e(D_POSE_Z);
+  d_position_(0) = e(D_POSITION_X);
+  d_position_(1) = e(D_POSITION_Y);
+  d_position_(2) = e(D_POSITION_Z);
   d_lin_vel_(0) = e(D_LIN_VEL_X);
   d_lin_vel_(1) = e(D_LIN_VEL_Y);
   d_lin_vel_(2) = e(D_LIN_VEL_Z);
@@ -35,13 +35,13 @@ void pose_twist_meskf::ErrorStateVector::fromVector(const MatrixWrapper::ColumnV
 
 /**
  * @brief Write the error state entities to a BFL vector.
- * @param e vector to compose (should have the nominal state dimension).
+ * @param e vector to compose (should have the correct dimension).
  */
 void pose_twist_meskf::ErrorStateVector::toVector(MatrixWrapper::ColumnVector& e) const
 {
-  e(D_POSE_X) = d_pose_(0);
-  e(D_POSE_Y) = d_pose_(1);
-  e(D_POSE_Z) = d_pose_(2);
+  e(D_POSITION_X) = d_position_(0);
+  e(D_POSITION_Y) = d_position_(1);
+  e(D_POSITION_Z) = d_position_(2);
   e(D_LIN_VEL_X) = d_lin_vel_(0);
   e(D_LIN_VEL_Y) = d_lin_vel_(1);
   e(D_LIN_VEL_Z) = d_lin_vel_(2);
