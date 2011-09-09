@@ -1,5 +1,5 @@
 /** @file
- * @brief Pose twist error-state extended Kalman filter
+ * @brief Pose twist error state extended Kalman filter
  * with multiplicative orientation error.
  * @author Joan Pau Beltran
  *
@@ -7,6 +7,9 @@
  */
 
 #include "pose_twist_meskf.h"
+#include "linearanalyticconditionalgaussian_visualmeasurement.h"
+#include "model/linearanalyticmeasurementmodel_gaussianuncertainty.h"
+#include "visual_measurement_error_vector.h"
 
 /**
  * @brief Default constructor doing nothing.
@@ -51,9 +54,9 @@ pose_twist_meskf::PoseTwistMESKF::~PoseTwistMESKF()
  * @return the time stamp of the last processed input.
  */
 pose_twist_meskf::PoseTwistMESKF::TimeStamp
-pose_twist_meskf::PoseTwistMESKF::getTimeStamp() const
+pose_twist_meskf::PoseTwistMESKF::getFilterTime() const
 {
-  return current_time_;
+  return filter_time_;
 };
 
 
@@ -91,7 +94,7 @@ void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
 {
   x = getEstimate();
   P = getCovariance();
-  t = getTimeStamp();
+  t = getFilterTime();
 }
 
 
@@ -130,7 +133,7 @@ void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
   system_prior_ = new BFL::Gaussian(prior_mean, prior_cov);
   filter_ = new BFL::ExtendedKalmanFilterResetCapable(system_prior_);
   system_pdf_->NominalStateSet(x);
-  current_time_ = t;
+  filter_time_ = t;
 }
 
 /**
@@ -146,7 +149,7 @@ void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
 bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
                                                 const Vector& u)
 {
-  if (t<current_time_)
+  if (t<filter_time_)
     return false;
   input_queue_.push(Input(t,u));
   return true;
@@ -170,7 +173,7 @@ bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementIndex& i,
                                                       const Vector& z,
                                                       const SymmetricMatrix Q)
 {
-  if (t<current_time_)
+  if (t<filter_time_)
     return false;
   measurement_queues_[i].push(Measurement(t,z,Q));
   return true;
@@ -209,8 +212,10 @@ void pose_twist_meskf::PoseTwistMESKF::update()
         updateFilterSys(input_queue_.top());
         input_queue_.pop();
       }
-      if(current_time_<m.t_)
-        updateFilterSys(Input(m.t_,current_input_));
+      if(filter_time_<m.t_)
+      {
+        updateFilterSys(Input(m.t_,filter_input_));
+      }
       updateFilterMeas(qnext, m);
       measurement_queues_[qnext].pop();
     }
@@ -229,18 +234,18 @@ void pose_twist_meskf::PoseTwistMESKF::update()
  * @param u input.
  * @return whether the filter updated the system (currently always true)
  */
-bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& u)
+bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
 {
-  TimeStamp input_t = u.t_;
-  Vector input_val = u.u_;
-  int input_dim = u.u_.rows();
-  Vector in(input_dim+1);
+  TimeStamp input_t = in.t_;
+  Vector input_val = in.u_;
+  int input_dim = in.u_.rows();
+  Vector u(input_dim+1);
   for (int i=0; i<input_dim; i++)
-    in(i)=input_val(i);
-  in(input_dim) = input_t - current_time_;
-  bool success = filter_->Update(system_model_,in);
-  current_time_ = input_t;
-  current_input_ = input_val;
+    u(i)=input_val(i);
+  u(input_dim) = input_t - filter_time_;
+  bool success = filter_->Update(system_model_,u);
+  filter_time_ = input_t;
+  filter_input_ = input_val;
   return success;
 }
 
@@ -258,22 +263,46 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& u)
  * @return whether the filter corrected the system.
  */
 bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& i,
-                                                        const Measurement& m)
+                                                        const Measurement& meas)
 {
-  TimeStamp measurement_t = m.t_;
-  Vector measurement_val = m.z_;
-  SymmetricMatrix measurement_cov = m.Q_;
   bool success = false;
-  if (measurement_t == current_time_)
+  if (meas.t_ == filter_time_)
   {
-    measurement_pdfs_[i]->AdditiveNoiseSigmaSet(measurement_cov);
-    success = filter_->Update(measurement_models_[i],measurement_val);
+    measurement_pdfs_[i]->AdditiveNoiseSigmaSet(meas.Q_);
+    Vector x = system_pdf_->NominalStateGet();
+    success = filter_->Update(measurement_models_[i],
+                              measurement_pdfs_[i]->ErrorMeasurement(meas.z_,x));
   }
   if (success)
   {
     system_pdf_->CorrectNominalState(filter_->PostGet()->ExpectedValueGet());
-    filter_->PostMuSet(MatrixWrapper::ColumnVector(system_pdf_->DimensionGet(),0.0));
+    filter_->PostMuSet(Vector(system_pdf_->DimensionGet(),0.0));
   }
   return success;
 }
 
+
+/**
+ * @brief Set up the measurement models used by the filter and its pdf's.
+ */
+void pose_twist_meskf::PoseTwistMESKF::setUpMeasurementModels()
+{
+  // Set up vectors
+  measurement_pdfs_.resize(NUM_MEASUREMENT_TYPES);
+  measurement_models_.resize(NUM_MEASUREMENT_TYPES);
+  measurement_queues_.resize(NUM_MEASUREMENT_TYPES);
+
+  // Set up visual measurement
+  const int& visual_meas_dim = VisualMeasurementErrorVector::DIMENSION;
+  MatrixWrapper::ColumnVector visual_meas_noise_mean(visual_meas_dim,0.0);
+  BFL::Gaussian visual_meas_noise(visual_meas_dim);
+  visual_meas_noise.ExpectedValueSet(visual_meas_noise_mean);
+  // Covariance is set every measurement update,
+  // so it does not need initialization.
+  BFL::LinearAnalyticConditionalGaussianVisualMeasurement* visual_meas_pdf =
+      new BFL::LinearAnalyticConditionalGaussianVisualMeasurement(visual_meas_noise);
+  BFL::LinearAnalyticMeasurementModelGaussianUncertainty* visual_meas_model =
+      new BFL::LinearAnalyticMeasurementModelGaussianUncertainty(visual_meas_pdf);
+  measurement_pdfs_[VISUAL] = visual_meas_pdf;
+  measurement_models_[VISUAL] = visual_meas_model;
+}

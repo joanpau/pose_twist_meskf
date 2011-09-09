@@ -1,6 +1,6 @@
 /** @file
  *
- * @brief Pose twist error-state extended Kalman filter
+ * @brief Pose twist error state extended Kalman filter
  * with multiplicative orientation error.
  *
  * The filter is implemented using the Bayesian Filter Library.
@@ -15,6 +15,7 @@
 #include <model/analyticsystemmodel_gaussianuncertainty.h>
 #include <model/analyticmeasurementmodel_gaussianuncertainty.h>
 #include "analyticconditionalgaussian_posetwisterrorstate.h"
+#include "linearanalyticconditionalgaussian_errormeasurement.h"
 #include "extendedkalmanfilter_resetcapable.h"
 
 namespace pose_twist_meskf
@@ -41,10 +42,16 @@ public:
   typedef double TimeStamp;
   typedef int MeasurementIndex;
 
+  enum MeasurementType
+  {
+    VISUAL
+  };
+  static const int NUM_MEASUREMENT_TYPES = 1;
+
   PoseTwistMESKF();
   virtual ~PoseTwistMESKF();
 
-  TimeStamp getTimeStamp() const;
+  TimeStamp getFilterTime() const;
   SymmetricMatrix getCovariance() const;
   Vector getEstimate() const;
   void getEstimate(Vector& x, SymmetricMatrix& P, TimeStamp& t) const;
@@ -91,15 +98,17 @@ private:
   BFL::Gaussian*                                       system_prior_;
   std::priority_queue<Input>                           input_queue_;
 
-  std::vector< BFL::AnalyticConditionalGaussianAdditiveNoise* >    measurement_pdfs_;
+  std::vector< BFL::LinearAnalyticConditionalGaussianErrorMeasurement* > measurement_pdfs_;
   std::vector< BFL::AnalyticMeasurementModelGaussianUncertainty* > measurement_models_;
   std::vector< std::priority_queue<Measurement> >                  measurement_queues_;
 
-  Vector current_input_;
-  TimeStamp current_time_;
+  Vector filter_input_;
+  TimeStamp filter_time_;
+
 
   bool updateFilterSys(const Input& u);
   bool updateFilterMeas(const MeasurementIndex& i, const Measurement& m);
+  void setUpMeasurementModels();
 };
 
 } // namespace
