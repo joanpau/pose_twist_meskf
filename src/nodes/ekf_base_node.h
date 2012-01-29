@@ -1,6 +1,6 @@
 /** @file
  *
- * @brief Pose twist error-state extended Kalman filter
+ * @brief Pose twist error state extended Kalman filter
  * with multiplicative orientation error.
  *
  * Imu's gyroscope and accelerometer readings are treated as control inputs.
@@ -36,7 +36,7 @@
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include <memsense_imu/ImuMAG.h>
-#include <albatros_motorboard/PressureStamped.h>
+#include <srv_msgs/Pressure.h>
 
 class PoseTwistEKFBaseNode
 {

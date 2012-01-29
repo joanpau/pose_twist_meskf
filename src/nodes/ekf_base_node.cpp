@@ -1,6 +1,6 @@
 /** @file
  *
- * @brief Pose twist error-state extended Kalman filter
+ * @brief Pose twist error state extended Kalman filter
  * with multiplicative orientation error.
  *
  * Imu's gyroscope and accelerometer readings are treated as control inputs.
