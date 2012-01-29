@@ -29,4 +29,14 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_add_executable(example examples/example.cpp)
 #target_link_libraries(example ${PROJECT_NAME})
 
-add_subdirectory(src/filter)
+rosbuild_add_library(pose_twist_meskf 
+                       src/filter/pose_twist_meskf.cpp
+                       src/filter/extendedkalmanfilter_resetcapable.cpp
+                       src/filter/nominal_state_vector.cpp
+                       src/filter/error_state_vector.cpp
+                       src/filter/input_vector.cpp
+                       src/filter/analyticconditionalgaussian_posetwisterrorstate.cpp
+                       src/filter/linearanalyticconditionalgaussian_errormeasurement.cpp
+                       src/filter/visual_measurement_vector.cpp
+                       src/filter/visual_measurement_error_vector.cpp
+                       src/filter/linearanalyticconditionalgaussian_visualmeasurement.cpp)
