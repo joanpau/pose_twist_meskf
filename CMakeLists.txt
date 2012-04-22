@@ -40,3 +40,8 @@ rosbuild_add_library(pose_twist_meskf
                        src/filter/visual_measurement_vector.cpp
                        src/filter/visual_measurement_error_vector.cpp
                        src/filter/linearanalyticconditionalgaussian_visualmeasurement.cpp)
+
+include_directories(src/filter)
+rosbuild_add_executable(sfly_test 
+                          src/nodes/sfly_test_main.cpp)
+target_link_libraries(sfly_test pose_twist_meskf)

@@ -25,13 +25,13 @@ namespace pose_twist_meskf
  * @brief Multiplicative error-state Kalman filter class.
  *
  * The estimator has one internal queue for the inputs,
- * and one internal queue for each measurement.
+ * and one internal queue for each measurement type.
  * Every input and measurement is added to the respective queue
  * with the functions addInput() and addMeasurement().
  * The input and measurement processing is delayed
  * until a call to the function update(), when all inputs and measurements
  * are processed sequentially according to its time stamp.
- * To use the class first set up the system model with setUpSystem.
+ * To use the class first set up the system model with setUpSystem().
  * Then the initial state should be set with initialize().
  */
 class PoseTwistMESKF
@@ -61,10 +61,12 @@ public:
                    const double& acc_bias_var,
                    const double& gyro_drift_var);
 
+  void setUpMeasurementModels();
+
   void initialize(const Vector& x, const SymmetricMatrix& P, const TimeStamp& t);
 
   bool addInput(const TimeStamp& t, const Vector& u);
-  bool addMeasurement(const MeasurementIndex& i, const TimeStamp& t,
+  bool addMeasurement(const MeasurementType& m, const TimeStamp& t,
                       const Vector& z, const SymmetricMatrix Q);
 
   void update();
@@ -108,7 +110,6 @@ private:
 
   bool updateFilterSys(const Input& u);
   bool updateFilterMeas(const MeasurementIndex& i, const Measurement& m);
-  void setUpMeasurementModels();
 };
 
 } // namespace

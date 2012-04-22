@@ -122,19 +122,19 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::
 void BFL::AnalyticConditionalGaussianPoseTwistErrorState::
 CorrectNominalState(const MatrixWrapper::ColumnVector& e)
 {
-  pose_twist_meskf::ErrorStateVector error_;
-  error_.fromVector(e);
+  pose_twist_meskf::ErrorStateVector error;
+  error.fromVector(e);
 
   // Correct the nominal state.
-  nominal_state_.position_ += error_.d_position_;
-  nominal_state_.lin_vel_ += error_.d_lin_vel_;
-  nominal_state_.orientation_ *= Eigen::Quaterniond(Eigen::AngleAxisd(error_.d_orientation_.norm(),
-                                                                      error_.d_orientation_.normalized()));
+  nominal_state_.position_ += error.d_position_;
+  nominal_state_.lin_vel_ += error.d_lin_vel_;
+  nominal_state_.orientation_ *= Eigen::Quaterniond(Eigen::AngleAxisd(error.d_orientation_.norm(),
+                                                                      error.d_orientation_.normalized()));
   // orientation_.normalize();
-  nominal_state_.acc_bias_ += error_.d_acc_bias_;
-  nominal_state_.gyro_drift_ += error_.d_gyro_drift_;
-  nominal_state_.lin_acc_ += error_.d_acc_bias_;
-  nominal_state_.ang_vel_ -= error_.d_gyro_drift_;
+  nominal_state_.acc_bias_ += error.d_acc_bias_;
+  nominal_state_.gyro_drift_ += error.d_gyro_drift_;
+  nominal_state_.lin_acc_ += error.d_acc_bias_;
+  nominal_state_.ang_vel_ -= error.d_gyro_drift_;
 }
 
 

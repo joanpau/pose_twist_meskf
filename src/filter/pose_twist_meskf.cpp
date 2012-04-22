@@ -20,6 +20,7 @@
  * @return
  */
 pose_twist_meskf::PoseTwistMESKF::PoseTwistMESKF()
+: filter_(0), system_model_(0), system_pdf_(0), system_prior_(0)
 {}
 
 
@@ -32,18 +33,18 @@ pose_twist_meskf::PoseTwistMESKF::PoseTwistMESKF()
  */
 pose_twist_meskf::PoseTwistMESKF::~PoseTwistMESKF()
 {
-  if (filter_)
-    delete filter_;
   if (system_model_)
     delete system_model_;
   if(system_pdf_)
     delete system_pdf_;
   if(system_prior_)
     delete system_prior_;
-  for (int i = measurement_models_.size(); i>=0; i--)
+  if (filter_)
+    delete filter_;
+  for (int i = measurement_models_.size()-1; i>=0; i--)
     if(measurement_models_[i])
       delete measurement_models_[i];
-  for (int i = measurement_pdfs_.size(); i>=0; i--)
+  for (int i = measurement_pdfs_.size()-1; i>=0; i--)
     if(measurement_pdfs_[i])
       delete measurement_pdfs_[i];
 }
@@ -98,6 +99,13 @@ void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
 }
 
 
+/**
+ * @brief Set up the system model used by the filter and its pdf.
+ * @param acc_var accelerometer variance (same for all axes).
+ * @param gyro_var gyroscope variance (same for all axes).
+ * @param acc_bias_var accelerometer bias variance (same for all axes).
+ * @param gyro_drift_var gyroscope bias variance (same for all axes).
+ */
 void pose_twist_meskf::PoseTwistMESKF::setUpSystem(const double& acc_var,
                                                    const double& gyro_var,
                                                    const double& acc_bias_var,
@@ -108,6 +116,32 @@ void pose_twist_meskf::PoseTwistMESKF::setUpSystem(const double& acc_var,
                                                                         acc_bias_var,
                                                                         gyro_drift_var);
   system_model_ = new BFL::AnalyticSystemModelGaussianUncertainty(system_pdf_);
+}
+
+
+/**
+ * @brief Set up the measurement models used by the filter and its pdf's.
+ */
+void pose_twist_meskf::PoseTwistMESKF::setUpMeasurementModels()
+{
+  // Set up vectors
+  measurement_pdfs_.resize(NUM_MEASUREMENT_TYPES);
+  measurement_models_.resize(NUM_MEASUREMENT_TYPES);
+  measurement_queues_.resize(NUM_MEASUREMENT_TYPES);
+
+  // Set up visual measurement
+  const int& visual_meas_dim = VisualMeasurementErrorVector::DIMENSION;
+  MatrixWrapper::ColumnVector visual_meas_noise_mean(visual_meas_dim,0.0);
+  BFL::Gaussian visual_meas_noise(visual_meas_dim);
+  visual_meas_noise.ExpectedValueSet(visual_meas_noise_mean);
+  // Covariance is set every measurement update,
+  // so it does not need initialization.
+  BFL::LinearAnalyticConditionalGaussianVisualMeasurement* visual_meas_pdf =
+      new BFL::LinearAnalyticConditionalGaussianVisualMeasurement(visual_meas_noise);
+  BFL::LinearAnalyticMeasurementModelGaussianUncertainty* visual_meas_model =
+      new BFL::LinearAnalyticMeasurementModelGaussianUncertainty(visual_meas_pdf);
+  measurement_pdfs_[VISUAL] = visual_meas_pdf;
+  measurement_models_[VISUAL] = visual_meas_model;
 }
 
 
@@ -168,14 +202,14 @@ bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
  * @return whether the input has been added to the queue.
  */
 
-bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementIndex& i,
+bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
                                                       const TimeStamp& t,
                                                       const Vector& z,
                                                       const SymmetricMatrix Q)
 {
   if (t<filter_time_)
     return false;
-  measurement_queues_[i].push(Measurement(t,z,Q));
+  measurement_queues_[m].push(Measurement(t,z,Q));
   return true;
 }
 
@@ -279,30 +313,4 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& 
     filter_->PostMuSet(Vector(system_pdf_->DimensionGet(),0.0));
   }
   return success;
-}
-
-
-/**
- * @brief Set up the measurement models used by the filter and its pdf's.
- */
-void pose_twist_meskf::PoseTwistMESKF::setUpMeasurementModels()
-{
-  // Set up vectors
-  measurement_pdfs_.resize(NUM_MEASUREMENT_TYPES);
-  measurement_models_.resize(NUM_MEASUREMENT_TYPES);
-  measurement_queues_.resize(NUM_MEASUREMENT_TYPES);
-
-  // Set up visual measurement
-  const int& visual_meas_dim = VisualMeasurementErrorVector::DIMENSION;
-  MatrixWrapper::ColumnVector visual_meas_noise_mean(visual_meas_dim,0.0);
-  BFL::Gaussian visual_meas_noise(visual_meas_dim);
-  visual_meas_noise.ExpectedValueSet(visual_meas_noise_mean);
-  // Covariance is set every measurement update,
-  // so it does not need initialization.
-  BFL::LinearAnalyticConditionalGaussianVisualMeasurement* visual_meas_pdf =
-      new BFL::LinearAnalyticConditionalGaussianVisualMeasurement(visual_meas_noise);
-  BFL::LinearAnalyticMeasurementModelGaussianUncertainty* visual_meas_model =
-      new BFL::LinearAnalyticMeasurementModelGaussianUncertainty(visual_meas_pdf);
-  measurement_pdfs_[VISUAL] = visual_meas_pdf;
-  measurement_models_[VISUAL] = visual_meas_model;
 }

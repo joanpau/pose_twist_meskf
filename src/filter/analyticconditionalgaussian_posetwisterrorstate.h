@@ -53,7 +53,7 @@ public:
   MatrixWrapper::ColumnVector NominalStateGet();
   void CorrectNominalState(const MatrixWrapper::ColumnVector& e);
 
-  // redefine virtual functions.
+  // Redefine virtual functions.
   virtual MatrixWrapper::ColumnVector ExpectedValueGet() const;
   virtual MatrixWrapper::Matrix dfGet(unsigned int i) const;
   virtual MatrixWrapper::SymmetricMatrix CovarianceGet() const;

@@ -31,8 +31,8 @@ public:
   virtual LinearAnalyticConditionalGaussianVisualMeasurement* Clone() const;
 
   // Nominal state measurement to error state measurement conversion
-  MatrixWrapper::ColumnVector ErrorMeasurement(const MatrixWrapper::ColumnVector& mesurement,
-                                               const MatrixWrapper::ColumnVector& nominal_state) const;
+  MatrixWrapper::ColumnVector ErrorMeasurement(const MatrixWrapper::ColumnVector& z,
+                                               const MatrixWrapper::ColumnVector& x) const;
 
   static const MatrixWrapper::Matrix H;  //!< Measurement matrix.
 

@@ -49,8 +49,8 @@ namespace BFL
       // virtual MatrixWrapper::Matrix          dfGet(unsigned int i) const;
 
       // Pure virtual function to convert nominal measurements to error measurements.
-      virtual MatrixWrapper::ColumnVector ErrorMeasurement(const MatrixWrapper::ColumnVector& mesurement,
-                                                           const MatrixWrapper::ColumnVector& nominal_state) const = 0;
+      virtual MatrixWrapper::ColumnVector ErrorMeasurement(const MatrixWrapper::ColumnVector& z,
+                                                           const MatrixWrapper::ColumnVector& x) const = 0;
 
     };
 
