@@ -31,6 +31,7 @@ struct NominalStateVector
   Eigen::Vector3d gyro_drift_;     //!< Gyroscopes' drift.
   Eigen::Vector3d lin_acc_;        //!< Linear acceleration in body-fixed frame.
   Eigen::Vector3d ang_vel_;        //!< Angular velocity in body-fixed frame.
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the nominal state vector
   static const int DIMESION = 22;  //!< Nominal state vector dimension.

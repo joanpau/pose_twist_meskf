@@ -27,6 +27,7 @@ struct InputVector
   Eigen::Vector3d lin_acc_; //!< Accelerometers' reading.
   Eigen::Vector3d ang_vel_; //!< Gyroscopes' reading.
   double time_incr_;        //!< Elapsed time since previous input.
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the input vector
   static const int DIMENSION = 7; //!< Input vector dimension.

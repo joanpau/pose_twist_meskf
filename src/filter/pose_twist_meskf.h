@@ -1,5 +1,5 @@
-/** @file
- *
+/**
+ * @file
  * @brief Pose twist error state extended Kalman filter
  * with multiplicative orientation error.
  *
@@ -13,9 +13,9 @@
 #include <wrappers/matrix/matrix_wrapper.h>
 #include <wrappers/matrix/vector_wrapper.h>
 #include <model/analyticsystemmodel_gaussianuncertainty.h>
-#include <model/analyticmeasurementmodel_gaussianuncertainty.h>
+#include <model/linearanalyticmeasurementmodel_gaussianuncertainty.h>
 #include "analyticconditionalgaussian_posetwisterrorstate.h"
-#include "linearanalyticconditionalgaussian_errormeasurement.h"
+#include "analyticconditionalgaussian_errormeasurement.h"
 #include "extendedkalmanfilter_resetcapable.h"
 
 namespace pose_twist_meskf
@@ -31,8 +31,11 @@ namespace pose_twist_meskf
  * The input and measurement processing is delayed
  * until a call to the function update(), when all inputs and measurements
  * are processed sequentially according to its time stamp.
- * To use the class first set up the system model with setUpSystem().
- * Then the initial state should be set with initialize().
+ * To use the class first set up the system model with setUpSystem() and
+ * then set the the initial state with initialize().
+ *
+ * Details about the dynamic model and the measurent models may be found
+ * in the documentation of the respective conditional pdf implementation.
  */
 class PoseTwistMESKF
 {
@@ -66,10 +69,10 @@ public:
   void initialize(const Vector& x, const SymmetricMatrix& P, const TimeStamp& t);
 
   bool addInput(const TimeStamp& t, const Vector& u);
-  bool addMeasurement(const MeasurementType& m, const TimeStamp& t,
-                      const Vector& z, const SymmetricMatrix Q);
+  bool addMeasurement(const MeasurementType& m, const Vector& z,
+                      const SymmetricMatrix Q, const TimeStamp& t);
 
-  void update();
+  bool update();
 
 private:
 
@@ -100,7 +103,7 @@ private:
   BFL::Gaussian*                                       system_prior_;
   std::priority_queue<Input>                           input_queue_;
 
-  std::vector< BFL::LinearAnalyticConditionalGaussianErrorMeasurement* > measurement_pdfs_;
+  std::vector< BFL::AnalyticConditionalGaussianErrorMeasurement* > measurement_pdfs_;
   std::vector< BFL::AnalyticMeasurementModelGaussianUncertainty* > measurement_models_;
   std::vector< std::priority_queue<Measurement> >                  measurement_queues_;
 

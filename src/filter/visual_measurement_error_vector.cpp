@@ -11,35 +11,47 @@
 
 /**
  * @brief Read the visual measurement error entities from a BFL vector.
- * @param z vector to decompose.
+ * @param e vector to decompose.
  */
-void pose_twist_meskf::VisualMeasurementErrorVector::fromVector(const MatrixWrapper::ColumnVector& z)
+void pose_twist_meskf::VisualMeasurementErrorVector::fromVector(const MatrixWrapper::ColumnVector& e)
 {
-  d_position_(0) = z(D_POSITION_X);
-  d_position_(1) = z(D_POSITION_Y);
-  d_position_(2) = z(D_POSITION_Z);
-  d_lin_vel_(0) = z(D_LIN_VEL_X);
-  d_lin_vel_(1) = z(D_LIN_VEL_Y);
-  d_lin_vel_(2) = z(D_LIN_VEL_Z);
-  d_orientation_.x() = z(D_ORIENTATION_X);
-  d_orientation_.y() = z(D_ORIENTATION_Y);
-  d_orientation_.z() = z(D_ORIENTATION_Z);
+  d_position_(0) = e(D_POSITION_X);
+  d_position_(1) = e(D_POSITION_Y);
+  d_position_(2) = e(D_POSITION_Z);
+  d_lin_vel_(0) = e(D_LIN_VEL_X);
+  d_lin_vel_(1) = e(D_LIN_VEL_Y);
+  d_lin_vel_(2) = e(D_LIN_VEL_Z);
+  d_orientation_.x() = e(D_ORIENTATION_X);
+  d_orientation_.y() = e(D_ORIENTATION_Y);
+  d_orientation_.z() = e(D_ORIENTATION_Z);
+  d_acc_bias_(0) = e(D_ACC_BIAS_X);
+  d_acc_bias_(1) = e(D_ACC_BIAS_Y);
+  d_acc_bias_(2) = e(D_ACC_BIAS_Z);
+  d_gyro_drift_(0) = e(D_GYRO_DRIFT_X);
+  d_gyro_drift_(1) = e(D_GYRO_DRIFT_Y);
+  d_gyro_drift_(2) = e(D_GYRO_DRIFT_Z);
 }
 
 
 /**
  * @brief Write the visual measurement error entities to a BFL vector.
- * @param z vector to compose (should have the correct dimension).
+ * @param e vector to compose (should have the correct dimension).
  */
-void pose_twist_meskf::VisualMeasurementErrorVector::toVector(MatrixWrapper::ColumnVector& z) const
+void pose_twist_meskf::VisualMeasurementErrorVector::toVector(MatrixWrapper::ColumnVector& e) const
 {
-  z(D_POSITION_X) = d_position_(0);
-  z(D_POSITION_Y) = d_position_(1);
-  z(D_POSITION_Z) = d_position_(2);
-  z(D_LIN_VEL_X) = d_lin_vel_(0);
-  z(D_LIN_VEL_Y) = d_lin_vel_(1);
-  z(D_LIN_VEL_Z) = d_lin_vel_(2);
-  z(D_ORIENTATION_X) = d_orientation_.x();
-  z(D_ORIENTATION_Y) = d_orientation_.y();
-  z(D_ORIENTATION_Z) = d_orientation_.z();
+  e(D_POSITION_X) = d_position_(0);
+  e(D_POSITION_Y) = d_position_(1);
+  e(D_POSITION_Z) = d_position_(2);
+  e(D_LIN_VEL_X) = d_lin_vel_(0);
+  e(D_LIN_VEL_Y) = d_lin_vel_(1);
+  e(D_LIN_VEL_Z) = d_lin_vel_(2);
+  e(D_ORIENTATION_X) = d_orientation_.x();
+  e(D_ORIENTATION_Y) = d_orientation_.y();
+  e(D_ORIENTATION_Z) = d_orientation_.z();
+  e(D_ACC_BIAS_X) = d_acc_bias_(0);
+  e(D_ACC_BIAS_Y) = d_acc_bias_(1);
+  e(D_ACC_BIAS_Z) = d_acc_bias_(2);
+  e(D_GYRO_DRIFT_X) = d_gyro_drift_(0);
+  e(D_GYRO_DRIFT_Y) = d_gyro_drift_(1);
+  e(D_GYRO_DRIFT_Z) = d_gyro_drift_(2);
 }

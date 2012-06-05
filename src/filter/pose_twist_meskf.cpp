@@ -7,7 +7,7 @@
  */
 
 #include "pose_twist_meskf.h"
-#include "linearanalyticconditionalgaussian_visualmeasurement.h"
+#include "analyticconditionalgaussian_visualmeasurement.h"
 #include "model/linearanalyticmeasurementmodel_gaussianuncertainty.h"
 #include "visual_measurement_error_vector.h"
 
@@ -129,17 +129,14 @@ void pose_twist_meskf::PoseTwistMESKF::setUpMeasurementModels()
   measurement_models_.resize(NUM_MEASUREMENT_TYPES);
   measurement_queues_.resize(NUM_MEASUREMENT_TYPES);
 
-  // Set up visual measurement
-  const int& visual_meas_dim = VisualMeasurementErrorVector::DIMENSION;
-  MatrixWrapper::ColumnVector visual_meas_noise_mean(visual_meas_dim,0.0);
-  BFL::Gaussian visual_meas_noise(visual_meas_dim);
-  visual_meas_noise.ExpectedValueSet(visual_meas_noise_mean);
-  // Covariance is set every measurement update,
-  // so it does not need initialization.
-  BFL::LinearAnalyticConditionalGaussianVisualMeasurement* visual_meas_pdf =
-      new BFL::LinearAnalyticConditionalGaussianVisualMeasurement(visual_meas_noise);
-  BFL::LinearAnalyticMeasurementModelGaussianUncertainty* visual_meas_model =
-      new BFL::LinearAnalyticMeasurementModelGaussianUncertainty(visual_meas_pdf);
+  BFL::AnalyticConditionalGaussianVisualMeasurement* visual_meas_pdf =
+      new BFL::AnalyticConditionalGaussianVisualMeasurement();
+  MatrixWrapper::ColumnVector visual_meas_noise_mean(visual_meas_pdf->DimensionGet());
+  visual_meas_noise_mean = 0.0;
+  visual_meas_pdf->AdditiveNoiseMuSet(visual_meas_noise_mean);
+  // Covariance is set on measurement update,so it does not need initialization.
+  BFL::AnalyticMeasurementModelGaussianUncertainty* visual_meas_model =
+      new BFL::AnalyticMeasurementModelGaussianUncertainty(visual_meas_pdf);
   measurement_pdfs_[VISUAL] = visual_meas_pdf;
   measurement_models_[VISUAL] = visual_meas_model;
 }
@@ -159,10 +156,10 @@ void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
                                                   const TimeStamp& t)
 {
 
-  int dim = system_pdf_->DimensionGet();
+  const int dim = system_pdf_->DimensionGet();
   Vector prior_mean(dim);
   SymmetricMatrix prior_cov(dim);
-  prior_mean = 0;
+  prior_mean = 0.0;
   prior_cov = P;
   system_prior_ = new BFL::Gaussian(prior_mean, prior_cov);
   filter_ = new BFL::ExtendedKalmanFilterResetCapable(system_prior_);
@@ -203,9 +200,9 @@ bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
  */
 
 bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
-                                                      const TimeStamp& t,
                                                       const Vector& z,
-                                                      const SymmetricMatrix Q)
+                                                      const SymmetricMatrix Q,
+                                                      const TimeStamp& t)
 {
   if (t<filter_time_)
     return false;
@@ -216,6 +213,7 @@ bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
 
 /**
  * @brief Update the filter until some measurement queue is empty.
+ * @return whether filter has been updated properly.
  *
  * While there is a complete set of measurement updates to perform
  * (i.e. from each sensor there is at least one measurement pending to process),
@@ -224,36 +222,46 @@ bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
  *   - since the inputs and the measurements are not synchronized,
  *     update the system with the last input until the next measurement time.
  *   - correct the system state with the measurement and repeat.
- *
  */
-void pose_twist_meskf::PoseTwistMESKF::update()
+bool pose_twist_meskf::PoseTwistMESKF::update()
 {
-  bool pending = true;
-  do
+  bool success = true;
+  while( success && !input_queue_.empty() )
   {
-    int qnext, q;
-    for (qnext=q=measurement_queues_.size()-1; q>=0; q--)
-      if (measurement_queues_[q].empty())
-        pending = false;
-      else
-        if( (measurement_queues_[q].top().t_) < (measurement_queues_[qnext].top().t_) )
-          qnext = q;
-    if(pending)
+    success = updateFilterSys(input_queue_.top());
+    input_queue_.pop();
+  }
+  /*
+  bool empty_queue = false;
+  while (!empty_queue)
+  {
+    int qnext = measurement_queues_.size()-1;
+    empty_queue = measurement_queues_[qnext].empty();
+    for (int q = qnext-1 ; !empty_queue && (q >= 0); q--)
     {
-      const Measurement& m = measurement_queues_[qnext].top();
-      while( (!input_queue_.empty()) && (input_queue_.top().t_<=m.t_) )
+      if (measurement_queues_[q].empty())
+        empty_queue = true;
+      else if( measurement_queues_[q].top().t_ < measurement_queues_[qnext].top().t_ )
+        qnext = q;
+    }
+    if(!empty_queue)
+    {
+      while( (!input_queue_.empty()) &&
+             (input_queue_.top().t_<=measurement_queues_[qnext].top().t_) )
       {
         updateFilterSys(input_queue_.top());
         input_queue_.pop();
       }
-      if(filter_time_<m.t_)
+      if(filter_time_<measurement_queues_[qnext].top().t_)
       {
-        updateFilterSys(Input(m.t_,filter_input_));
+        updateFilterSys(Input(measurement_queues_[qnext].top().t_,filter_input_));
       }
-      updateFilterMeas(qnext, m);
+      updateFilterMeas(qnext, measurement_queues_[qnext].top());
       measurement_queues_[qnext].pop();
     }
-  } while (pending);
+  }
+  */
+  return success;
 }
 
 /**
@@ -272,14 +280,17 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
 {
   TimeStamp input_t = in.t_;
   Vector input_val = in.u_;
-  int input_dim = in.u_.rows();
+  int input_dim = input_val.rows();
   Vector u(input_dim+1);
-  for (int i=0; i<input_dim; i++)
+  for (int i=1; i<=input_dim; i++)
     u(i)=input_val(i);
-  u(input_dim) = input_t - filter_time_;
+  u(input_dim+1) = input_t - filter_time_;
   bool success = filter_->Update(system_model_,u);
-  filter_time_ = input_t;
-  filter_input_ = input_val;
+  if (success)
+  {
+    filter_time_ = input_t;
+    filter_input_ = input_val;
+  }
   return success;
 }
 
@@ -296,21 +307,26 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
  * @param m measurement.
  * @return whether the filter corrected the system.
  */
+#include "error_state_vector.h"
 bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& i,
                                                         const Measurement& meas)
 {
   bool success = false;
   if (meas.t_ == filter_time_)
   {
-    measurement_pdfs_[i]->AdditiveNoiseSigmaSet(meas.Q_);
     Vector x = system_pdf_->NominalStateGet();
+    measurement_pdfs_[i]->AdditiveNoiseSigmaSet(meas.Q_);
     success = filter_->Update(measurement_models_[i],
-                              measurement_pdfs_[i]->ErrorMeasurement(meas.z_,x));
+                              measurement_pdfs_[i]->ErrorMeasurement(meas.z_,x),
+                              x);
   }
   if (success)
   {
+    const Vector error_state = filter_->PostGet()->ExpectedValueGet();
     system_pdf_->CorrectNominalState(filter_->PostGet()->ExpectedValueGet());
-    filter_->PostMuSet(Vector(system_pdf_->DimensionGet(),0.0));
+    Vector zero_error_state(system_pdf_->DimensionGet());
+    zero_error_state = 0.0;
+    filter_->PostMuSet(zero_error_state);
   }
   return success;
 }

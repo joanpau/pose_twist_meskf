@@ -29,6 +29,7 @@ struct ErrorStateVector
   Eigen::Vector3d d_orientation_;    //!< Orientation error.
   Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error.
   Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error.
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the error state vector
   static const int DIMENSION = 15; //!< Error state vector dimension.

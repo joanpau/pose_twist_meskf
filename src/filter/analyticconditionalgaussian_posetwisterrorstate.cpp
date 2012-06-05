@@ -1,7 +1,7 @@
 /**
- * @file analyticconditionalgaussian_posetwisterrorstate.cpp
- * @brief Conditional distribution for pose-twist error state (presentation)
+ * @file
  * @author Joan Pau Beltran
+ * @brief Conditional distribution for pose-twist error state (presentation).
  *
  * This is the needed implementation of the pose-twist error state conditional
  * distribution with additive noise.
@@ -52,7 +52,7 @@
 
 const double BFL::AnalyticConditionalGaussianPoseTwistErrorState::G_CONS = 9.80665;
 const Eigen::Vector3d
-BFL::AnalyticConditionalGaussianPoseTwistErrorState::G_VECT = Eigen::Vector3d(0.0,0.0,G_CONS);
+BFL::AnalyticConditionalGaussianPoseTwistErrorState::G_VECT = Eigen::Vector3d(0.0,0.0,-G_CONS);
 
 const double
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::ANGULAR_RATE_EPSILON = 1E-3;
@@ -66,9 +66,9 @@ Eigen::Matrix3d BFL::AnalyticConditionalGaussianPoseTwistErrorState::
 skew(const Eigen::Vector3d& v) const
 {
   Eigen::Matrix3d m;
-  m <<  0.0 , -v(3),  v(2),
-        v(3),  0.0 , -v(1),
-       -v(2),  v(1),  0.0 ;
+  m <<  0.0 , -v(2),  v(1),
+        v(2),  0.0 , -v(0),
+       -v(1),  v(0),  0.0 ;
   return m;
 }
 
@@ -149,6 +149,7 @@ NominalStateSet(const MatrixWrapper::ColumnVector& x)
   nominal_state_.fromVector(x);
 }
 
+
 /**
  * @brief Get the current nominal state.
  * @return current nominal state vector.
@@ -175,7 +176,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
  * - orientation:
  *      q_next = q * q(angle turned, axis turned)
  * - linear velocity:
- *      v_next = v + dt*(R'*g - a_s + b) = v + dt*a
+ *      v_next = v + dt*(R'*g-a_s+b) = v + dt*a
  * - accelerometer bias:
  *      b_next = b
  * - gyroscope drift:
@@ -197,7 +198,6 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
  *      db_next = db
  * - gyroscope drift:
  *      dd_next = dd
- *
  */
 MatrixWrapper::ColumnVector
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
@@ -324,7 +324,8 @@ dfGet(unsigned int i) const
   const Eigen::Matrix3d db_db = I;
   const Eigen::Matrix3d dd_dd = I;
 
-  MatrixWrapper::Matrix dF(DimensionGet(),DimensionGet());
+  const int dim = DimensionGet();
+  MatrixWrapper::Matrix dF(dim, dim);
   dF = 0.0;
   for (int i=0; i<3; i++)
     for (int j=0; j<3; j++)

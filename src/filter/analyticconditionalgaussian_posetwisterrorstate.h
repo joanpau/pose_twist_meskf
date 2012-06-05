@@ -1,7 +1,7 @@
 /**
- * @file analyticconditionalgaussian_posetwisterrorstate.h
- * @brief Conditional distribution for pose-twist error state (presentation)
+ * @file
  * @author Joan Pau Beltran
+ * @brief Conditional distribution for pose-twist error state (presentation).
  *
  * This is the needed implementation of the pose-twist error state conditional
  * distribution with additive noise.
@@ -31,7 +31,7 @@
 #ifndef ANALYTICCONDITIONALGAUSSIAN_POSETWISTERRORSTATE_H
 #define ANALYTICCONDITIONALGAUSSIAN_POSETWISTERRORSTATE_H
 
-#include <pdf/analyticconditionalgaussian_additivenoise.h>
+#include <pdf/analyticconditionalgaussian.h>
 #include <Eigen/Dense>
 #include "nominal_state_vector.h"
 
@@ -39,7 +39,7 @@ namespace BFL
 {
 
 class AnalyticConditionalGaussianPoseTwistErrorState
-: public AnalyticConditionalGaussian
+: public BFL::AnalyticConditionalGaussian
 {
 public:
   // Default constructor specifying system noise.
