@@ -206,6 +206,10 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
   pose_twist_meskf::InputVector input;
   input.fromVector(ConditionalArgumentGet(1));
 
+  Eigen::Matrix3d R = nominal_state_.orientation_.toRotationMatrix();
+  nominal_state_.lin_acc_ = R.transpose()*G_VECT - input.lin_acc_ + nominal_state_.acc_bias_;
+  nominal_state_.ang_vel_ = input.ang_vel_ - nominal_state_.gyro_drift_;
+
   const double dt = input.time_incr_;
   const double dt2 = pow(dt,2);
   const double rate = nominal_state_.ang_vel_.norm();
@@ -213,10 +217,6 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
   const double angle = dt*rate;
   Eigen::AngleAxisd angle_axis(angle,axis);
 
-  Eigen::Matrix3d R = nominal_state_.orientation_.toRotationMatrix();
-
-  nominal_state_.lin_acc_ = R.transpose()*G_VECT - input.lin_acc_ + nominal_state_.acc_bias_;
-  nominal_state_.ang_vel_ = input.ang_vel_ - nominal_state_.gyro_drift_;
   nominal_state_.position_ += R*(dt*nominal_state_.lin_vel_ + 0.5*dt2*nominal_state_.lin_acc_);
   nominal_state_.lin_vel_ += dt*nominal_state_.lin_acc_;
   nominal_state_.orientation_*= Eigen::Quaterniond(angle_axis);
