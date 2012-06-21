@@ -115,53 +115,45 @@ bool readMeasurements(std::istream& in_vicon, VectorSerie* input_vicon )
 }
 
 
-void computeVelocityMeasurements(VectorSerie* input_vicon)
+void filterMeasurements(VectorSerie* input_vicon, const int n = 10)
 {
-  VectorSerie::iterator curr, next;
-  for (next = input_vicon->begin(), curr = next++; next != input_vicon->end(); curr = next++)
-  {
-    const double curr_t = curr->first;
-    const double next_t = next->first;
-    pose_twist_meskf::VisualMeasurementVector curr_z, next_z;
-    curr_z.fromVector(curr->second);
-    next_z.fromVector(next->second);
-    curr_z.lin_vel_ = curr_z.orientation_.toRotationMatrix().transpose()
-                      * (next_z.position_-curr_z.position_) / (next_t - curr_t);
-    Eigen::AngleAxis<double> aa(next_z.orientation_*curr_z.orientation_.inverse());
-    curr_z.ang_vel_ = aa.axis()*aa.angle() / (next_t - curr_t);
-    curr_z.toVector(curr->second);
-  }
-  next = curr--;
-  pose_twist_meskf::VisualMeasurementVector curr_z, next_z;
-  curr_z.fromVector(curr->second);
-  next_z.fromVector(next->second);
-  next_z.lin_vel_ = curr_z.lin_vel_;
-  next_z.ang_vel_ = curr_z.ang_vel_;
-  next_z.toVector(next->second);
+  VectorSerie filtered_vicon;
+  for (VectorSerie::const_iterator it = input_vicon->begin();
+       it != input_vicon->end(); std::advance(it,n))
+    filtered_vicon.insert(filtered_vicon.end(), *it);
+  *input_vicon = filtered_vicon;
 }
 
-void computeAccelerationMeasurements(VectorSerie* input_vicon)
+
+void computeVelocityAndAccelerationMeasurements(VectorSerie* input_vicon)
 {
   VectorSerie::iterator curr, next;
   for (next = input_vicon->begin(), curr = next++; next != input_vicon->end(); curr = next++)
   {
     const double curr_t = curr->first;
     const double next_t = next->first;
+    const double dt = next_t - curr_t;
     pose_twist_meskf::VisualMeasurementVector curr_z, next_z;
     curr_z.fromVector(curr->second);
     next_z.fromVector(next->second);
-    curr_z.lin_acc_ = ( (curr_z.orientation_.inverse()*next_z.orientation_).toRotationMatrix() * next_z.lin_vel_
-                      - curr_z.lin_vel_ ) / (next_t - curr_t);
-    // curr_z.lin_acc_ = (next_z.lin_vel_ - curr_z.lin_vel_) / (next_t - curr_t);
-    curr_z.toVector(curr->second);
+    if (curr == input_vicon->begin())
+    {
+      curr_z.ang_vel_ = Eigen::Vector3d::Zero();
+      curr_z.lin_vel_ = curr_z.orientation_.toRotationMatrix().transpose() *
+          (next_z.position_ - curr_z.position_) / dt;
+      curr_z.lin_acc_ = Eigen::Vector3d::Zero();
+    }
+    Eigen::AngleAxis<double> aa(next_z.orientation_*curr_z.orientation_.inverse());
+    next_z.ang_vel_ = aa.axis()*aa.angle() / dt;
+    next_z.lin_acc_ = curr_z.orientation_.toRotationMatrix().transpose() *
+                      2.0/(dt*dt) * (next_z.position_ - curr_z.position_ - dt * curr_z.orientation_.toRotationMatrix()*curr_z.lin_vel_ );
+    next_z.lin_vel_ = next_z.orientation_.toRotationMatrix().transpose() *
+                      curr_z.orientation_.toRotationMatrix() *
+                      (curr_z.lin_vel_ + dt * curr_z.lin_acc_);
+    next_z.toVector(next->second);
   }
-  next = curr--;
-  pose_twist_meskf::VisualMeasurementVector curr_z, next_z;
-  curr_z.fromVector(curr->second);
-  next_z.fromVector(next->second);
-  next_z.lin_acc_ = curr_z.lin_acc_;
-  next_z.toVector(next->second);
 }
+
 
 bool computeInputFromVicon(VectorSerie* imu, const VectorSerie& vicon)
 {
@@ -187,6 +179,7 @@ bool computeInputFromVicon(VectorSerie* imu, const VectorSerie& vicon)
   return true;
 }
 
+
 void writeEstimates(std::ostream& out, const VectorSerie& output)
 {
   for (VectorSerie::const_iterator it = output.begin(); it != output.end(); it++)
@@ -200,6 +193,7 @@ void writeEstimates(std::ostream& out, const VectorSerie& output)
   }
 }
 
+
 int main(int argc, char* argv[])
 {
   std::string filename_imu, filename_vicon;
@@ -211,42 +205,29 @@ int main(int argc, char* argv[])
     return 1;
   }
 
+  std::ostream& out = std::cout;
+
   std::ifstream in_imu(filename_imu.c_str());
   std::ifstream in_vicon(filename_vicon.c_str());
 
-  std::ostream& out = std::cout;
+  VectorSerie samples_imu;
+  VectorSerie samples_vicon;
 
-  VectorSerie samples_imu, samples_vicon;
-  bool input_ok = readMeasurements(in_vicon, &samples_vicon);
+  bool input_ok;
+
+  input_ok = readMeasurements(in_vicon, &samples_vicon) &&
+             readInputs(in_imu, &samples_imu);
   std::clog << samples_imu.size() << " imu readings." << std::endl;
   std::clog << samples_vicon.size() << " vicon readings." << std::endl;
   if ( ! input_ok )
     return 1;
 
-  computeVelocityMeasurements(&samples_vicon);
-  computeAccelerationMeasurements(&samples_vicon);
+//  filterMeasurements(&samples_vicon, 10);
+  computeVelocityAndAccelerationMeasurements(&samples_vicon);
 
-  input_ok = computeInputFromVicon(&samples_imu, samples_vicon);
-  if ( ! input_ok )
-    return 1;
-
-  /*
-  for (VectorSerie::const_iterator tz = samples_vicon.begin();
-       tz != samples_vicon.end();
-       tz++)
-  {
-    const double t = tz->first;
-    pose_twist_meskf::VisualMeasurementVector z;
-    z.fromVector(tz->second);
-    Eigen::Vector3d x = z.position_;
-    Eigen::Vector3d v = z.orientation_.toRotationMatrix()*z.lin_vel_;
-    out << t
-        << ' ' << x(0) << ' ' << x(1) << ' ' << x(2)
-        << ' ' << v(0) << ' ' << v(1) << ' ' << v(2)
-        << '\n';
-  }
-  return 0;
-  */
+//  input_ok = computeInputFromVicon(&samples_imu, samples_vicon);
+//  if ( ! input_ok )
+//    return 1;
 
   const double TIME_STEP = 1e-1;
   const double VAR_ACC = 100;
