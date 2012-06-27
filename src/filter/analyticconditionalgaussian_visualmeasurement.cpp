@@ -44,8 +44,14 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::ErrorMeasurement(
   Eigen::AngleAxisd aa(nominal_state.orientation_.inverse() * measurement.orientation_);
   error.d_orientation_ = aa.angle() * aa.axis();
   error.d_lin_vel_ = measurement.lin_vel_ - nominal_state.lin_vel_;
+  // Gyrometers' drift and accelerometers' bias are tricky because they do not appear
+  // explicitly in the nominal state. The update rules result from the following equations:
+  // Accelerometers' bias:
+  // $a_t = R'g - (a_s - b_t) = R'g - (a_s - (b + db)) = R'g - (a_s - b) + db$
+  // Gyroscopes' drift:
+  // $w_t = w_s - d_t = w_s - (d - dd) = ws - d - dd$
   error.d_acc_bias_ = measurement.lin_acc_ - nominal_state.lin_acc_;
-  error.d_gyro_drift_ = measurement.ang_vel_ - nominal_state.ang_vel_;
+  error.d_gyro_drift_ = nominal_state.ang_vel_ - measurement.ang_vel_;
   MatrixWrapper::ColumnVector e(pose_twist_meskf::ErrorStateVector::DIMENSION);
   error.toVector(e);
   return e;
