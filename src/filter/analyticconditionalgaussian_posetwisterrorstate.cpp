@@ -50,12 +50,14 @@
 #include "error_state_vector.h"
 #include "input_vector.h"
 
+
 const double BFL::AnalyticConditionalGaussianPoseTwistErrorState::G_CONS = 9.80665;
 const Eigen::Vector3d
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::G_VECT = Eigen::Vector3d(0.0,0.0,-G_CONS);
 
 const double
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::ANGULAR_RATE_EPSILON = 1E-3;
+
 
 /**
  * @brief Build the skew-symmetric matrix that computes the cross product.
@@ -185,10 +187,10 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
  * The error state update may be omitted
  * since it will lead to the same zero error state
  * (provided that the previous error is zero,
- * which always the case because of the filter reset).
- * In any case, these are the rules:
+ * which is always the case because of the filter reset).
+ * Anyway, these are the rules:
  * - position:
- *      dp_next = dp + dt*R*dv + (-dt*R*[v]_x* + 0.5*dt^2*a)*dq + 0.5*dt^2*R*db
+ *      dp_next = dp + dt*R*dv + (-dt*R*[v]_x + 0.5*dt^2*R*[a_s - b]_x)*dq + 0.5*dt^2*R*db
  * - orientation:
  *      dq_next = R(angle turned, axis turned)'*dq
  *                + { -dt*I + (1-cos(dt*|w|))/|w|^2*[w]_x - (dt*|w|-sin(dt*|w|))/|w|^3*[w]_x^2 }*db
@@ -230,10 +232,10 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
   pose_twist_meskf::ErrorStateVector error;
   error.fromVector(ConditionalArgumentGet(0));
   error.d_position_ += dt*R*error.d_lin_vel_
-                - dt*R*nominal_state_.lin_vel_.cross(error.d_orientation_)
-                + 0.5*dt2*nominal_state_.lin_acc_.cross(error.d_orientation_)
-                + 0.5*dt2*R*error.d_acc_bias_;
-  error.d_lin_vel_ += dt*skew(R.transpose()*G_VECT)*error.d_orientation_
+                    + dt*R*error.d_orientation_.cross(nominal_state_.lin_vel_)
+                    - 0.5*dt2*R*error.d_orientation_.cross(input.lin_acc_ - nominal_state_.acc_bias_)
+                    + 0.5*dt2*R*error.d_acc_bias_;
+  error.d_lin_vel_ += dt*(R.transpose()*G_VECT).cross(error.d_orientation_)
                    + dt*error.d_acc_bias_;
 
   const double dt3 = pow(dt,3);
@@ -286,18 +288,19 @@ dfGet(unsigned int i) const
   input.fromVector(ConditionalArgumentGet(1));
 
   const double dt = input.time_incr_;
-  const double dt2 = pow(dt,2);
   const double rate = nominal_state_.ang_vel_.norm();
   const Eigen::Vector3d axis = nominal_state_.ang_vel_.normalized();
   const double angle = dt*rate;
   Eigen::AngleAxisd angle_axis(angle,axis);
+
+  const double dt2 = pow(dt,2);
 
   const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
   Eigen::Matrix3d R = nominal_state_.orientation_.toRotationMatrix();
 
   const Eigen::Matrix3d dp_dp = I;
   const Eigen::Matrix3d dp_dq = - dt*R*skew(nominal_state_.lin_vel_)
-                                + 0.5*dt2*skew(nominal_state_.lin_acc_);
+                                + 0.5*dt2*R*skew(input.lin_acc_ - nominal_state_.acc_bias_);
   const Eigen::Matrix3d dp_dv = dt*R;
   const Eigen::Matrix3d dp_db = 0.5*dt2*R;
   const Eigen::Matrix3d dv_dv = I;
@@ -328,35 +331,37 @@ dfGet(unsigned int i) const
   MatrixWrapper::Matrix dF(dim, dim);
   dF = 0.0;
   for (int i=0; i<3; i++)
-    for (int j=0; j<3; j++)
   {
-    // Position:
-    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_POSITION_X + j) = dp_dp(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dp_dq(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dp_dv(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dp_db(i,j);
-    // Velocity:
-    dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dv_dv(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dv_dq(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dv_db(i,j);
-    // Orientation:
-    dF(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dq_dq(i,j);
-    dF(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dq_dd(i,j);
-    // Accelerometers' bias:
-    dF(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = db_db(i,j);
-    // Gyroscopes' drift:
-    dF(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
-       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dd_dd(i,j);
+    for (int j=0; j<3; j++)
+    {
+      // Position:
+      dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+         pose_twist_meskf::ErrorStateVector::D_POSITION_X + j) = dp_dp(i,j);
+      dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+         pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dp_dq(i,j);
+      dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+         pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dp_dv(i,j);
+      dF(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+         pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dp_db(i,j);
+      // Velocity:
+      dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+         pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dv_dv(i,j);
+      dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+         pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dv_dq(i,j);
+      dF(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+         pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dv_db(i,j);
+      // Orientation:
+      dF(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+         pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dq_dq(i,j);
+      dF(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+         pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dq_dd(i,j);
+      // Accelerometers' bias:
+      dF(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+         pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = db_db(i,j);
+      // Gyroscopes' drift:
+      dF(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
+         pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dd_dd(i,j);
+    }
   }
   return dF;
 }
@@ -364,10 +369,10 @@ dfGet(unsigned int i) const
 /**
  * @brief Compute the noise covariance.
  * The gyroscopes' output noise and drift noise
- * is supposed to be independent, gaussian, and isotropic.
+ * are supposed to be independent, gaussian, and isotropic.
  * Then, the covariance may be computed according to the second citation.
  * Accelerometers' output noise and bias noise
- * is supposed to be independent, gaussian, and isotropic too.
+ * are supposed to be independent, gaussian, and isotropic too.
  * But the covariance is only an approximation due to the system model
  * complexity.
  * @return the noise covariance.
@@ -377,19 +382,22 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::CovarianceGet() const
 {
   pose_twist_meskf::InputVector input;
   input.fromVector(ConditionalArgumentGet(1));
+
   const double dt = input.time_incr_;
   const double rate = nominal_state_.ang_vel_.norm();
   const Eigen::Vector3d axis = nominal_state_.ang_vel_.normalized();
   const double angle = dt*rate;
 
-  const Eigen::Matrix3d Qpp = Eigen::Matrix3d::Zero();
-  const Eigen::Matrix3d Qvv = dt*ACC_VAR_*Eigen::Matrix3d::Identity();
+  const double dt2 = pow(dt,2);
 
   const Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+
+  const Eigen::Matrix3d Qpp = 0.5*dt2*ACC_VAR_*I;
+  const Eigen::Matrix3d Qvv = dt*ACC_VAR_*I;
+
   const Eigen::Matrix3d S = skew(nominal_state_.ang_vel_);
   const Eigen::Matrix3d S2 = S*S;
 
-  const double dt2 = pow(dt,2);
   const double dt3 = pow(dt,3);
   const double dt4 = pow(dt,4);
   const double dt5 = pow(dt,5);
@@ -401,7 +409,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::CovarianceGet() const
   const double cos_angle = cos(angle);
   const double sin_angle = sin(angle);
 
-  const Eigen::Matrix3d Qqq = dt*GYRO_VAR_*Eigen::Matrix3d::Identity()
+  const Eigen::Matrix3d Qqq = dt*GYRO_VAR_*I
                             + GYRO_DRIFT_VAR_*
                             (
                               ( rate < ANGULAR_RATE_EPSILON )
@@ -422,6 +430,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::CovarianceGet() const
   Q = 0.0;
 
   for (int i=0; i<3; i++)
+  {
     for (int j=0; j<3; j++)
     {
       // Position:
@@ -444,5 +453,6 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::CovarianceGet() const
       Q(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+i,
         pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqd(j,i);
     }
+  }
   return Q;
 }
