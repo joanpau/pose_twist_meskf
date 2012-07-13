@@ -73,6 +73,7 @@ public:
                       const SymmetricMatrix Q, const TimeStamp& t);
 
   bool update();
+  bool updateAll();
 
 private:
 

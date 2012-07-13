@@ -168,19 +168,19 @@ void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
 }
 
 /**
- * @brief Add an input reading to the filter queue.
+ * @brief Add input reading to filter input queue.
  *
- * The given input must be more recent than the current filter time,
- * otherwise is dropped.
+ * Given input must be strictly posterior to current filter time,
+ * otherwise it is dropped.
  *
  * @param t input time.
  * @param u input value.
- * @return whether the input has been added to the queue.
+ * @return whether input has been added to queue.
  */
 bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
                                                 const Vector& u)
 {
-  if (t<filter_time_)
+  if (t<=filter_time_)
     return false;
   input_queue_.push(Input(t,u));
   return true;
@@ -188,15 +188,15 @@ bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
 
 
 /**
- * @brief Add a measurement reading to the filter queue.
+ * @brief Add measurement reading to corresponding filter measurement queue.
  *
- * The given measurement must be more recent than the current filter time,
- * otherwise is dropped.
+ * Given measurement time must be equal or posterior to current filter time,
+ * otherwise it is dropped.
  *
  * @param t measurement time.
  * @param z measurement value.
  * @param Q measurement covariance.
- * @return whether the input has been added to the queue.
+ * @return whether measurement has been added to queue.
  */
 
 bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
@@ -212,55 +212,146 @@ bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
 
 
 /**
- * @brief Update the filter until some measurement queue is empty.
+ * @brief Update filter until input queue or some measurement queue is empty.
  * @return whether filter has been updated properly.
  *
+ * This approach ensures that all inputs and measurements are processed,
+ * (assuming that readings from the same sensor come in chronological order)
+ * but introduces the same delay as the most delayed sensor.
+ *
  * While there is a complete set of measurement updates to perform
- * (i.e. from each sensor there is at least one measurement pending to process),
+ * (i.e. there is at least one measurement pending to process from each sensor),
  * all inputs and measurements are processed in order as follows:
- *   - process all inputs previous to the next measurement.
- *   - since the inputs and the measurements are not synchronized,
- *     update the system with the last input until the next measurement time.
- *   - correct the system state with the measurement and repeat.
+ *   - process all inputs up to the next measurement.
+ *   - since inputs and measurements do not need to be synchronized
+ *     the system time might not reach the next measurement time,
+ *     so update the system up to the next measurement time
+ *     using next input if available.
+ *   - if system time have reached the next measurement time
+ *     correct the system state with the measurement and repeat.
  */
 bool pose_twist_meskf::PoseTwistMESKF::update()
 {
   bool success = true;
-  while( success && !input_queue_.empty() )
+  bool empty_queue_found = false;
+  while (success && !empty_queue_found)
   {
-    success = updateFilterSys(input_queue_.top());
-    input_queue_.pop();
-  }
-  /*
-  bool empty_queue = false;
-  while (!empty_queue)
-  {
+    // Find queue with next measurement (closest in time) or empty.
     int qnext = measurement_queues_.size()-1;
-    empty_queue = measurement_queues_[qnext].empty();
-    for (int q = qnext-1 ; !empty_queue && (q >= 0); q--)
+    empty_queue_found = measurement_queues_[qnext].empty();
+    for (int q = qnext-1 ; (!empty_queue_found) && (q >= 0); q--)
     {
       if (measurement_queues_[q].empty())
-        empty_queue = true;
+        empty_queue_found = true;
       else if( measurement_queues_[q].top().t_ < measurement_queues_[qnext].top().t_ )
         qnext = q;
     }
-    if(!empty_queue)
+    // Update system only if there are no empty measurement queues.
+    if(!empty_queue_found)
     {
-      while( (!input_queue_.empty()) &&
+      // Predict state with available inputs prior to next measurement time.
+      while( success &&
+             (!input_queue_.empty()) &&
              (input_queue_.top().t_<=measurement_queues_[qnext].top().t_) )
       {
-        updateFilterSys(input_queue_.top());
+        success = updateFilterSys(input_queue_.top());
         input_queue_.pop();
       }
-      if(filter_time_<measurement_queues_[qnext].top().t_)
+      // If needed and next input is available,
+      // use next input to update system up to next measurement time.
+      if( success &&
+          (filter_time_<measurement_queues_[qnext].top().t_) &&
+          (!input_queue_.empty()) )
       {
-        updateFilterSys(Input(measurement_queues_[qnext].top().t_,filter_input_));
+        success = updateFilterSys(Input(measurement_queues_[qnext].top().t_,
+                                        input_queue_.top().u_));
       }
-      updateFilterMeas(qnext, measurement_queues_[qnext].top());
-      measurement_queues_[qnext].pop();
+      // Correct state with next measurement
+      // only if system time reached measurement time.
+      if ( success &&
+           filter_time_ == measurement_queues_[qnext].top().t_ )
+      {
+        success = updateFilterMeas(qnext, measurement_queues_[qnext].top());
+        measurement_queues_[qnext].pop();
+      }
     }
   }
-  */
+  return success;
+}
+
+
+/**
+ * @brief Update filter processing all inputs and corresponding measurements.
+ * @return whether filter has been updated properly.
+ *
+ * This approach ensures that filter's delay is the same than input delay
+ * but might discard measurements from delayed sensors
+ * (depending on the frequency this function is called).
+ *
+ * While there are any inputs in the input queue
+ * all inputs and measurements are processed in order as follows:
+ *   - process all inputs up to the next measurement.
+ *   - since inputs and measurements do not need to be synchronized
+ *     the system time might not reach the next measurement time,
+ *     so update the system up to the next measurement time
+ *     using next input if available.
+ *   - if system time have reached the next measurement time
+ *     correct the system state with the measurement and repeat.
+ */
+bool pose_twist_meskf::PoseTwistMESKF::updateAll()
+{
+
+  bool success = true;
+  bool all_queues_empty = false;
+  while (success && !all_queues_empty)
+  {
+    // Find queue with next measurement if any.
+    int qnext = measurement_queues_.size()-1;
+    while (qnext >= 0 && measurement_queues_[qnext].empty())
+      qnext--;
+    for (int q = qnext-1; q >= 0; q--)
+    {
+      if ( (!measurement_queues_[q].empty()) &&
+           (measurement_queues_[q].top().t_ < measurement_queues_[qnext].top().t_) )
+        qnext = q;
+    }
+    // Process next measurement if any or all remaining inputs.
+    if (qnext < 0)
+    {
+      while (success && !input_queue_.empty())
+      {
+        success = updateFilterSys(input_queue_.top());
+        input_queue_.pop();
+      }
+      all_queues_empty = true;
+    }
+    else
+    {
+      // Predict state with available inputs prior to next measurement time.
+      while( success &&
+             (!input_queue_.empty()) &&
+             (input_queue_.top().t_<=measurement_queues_[qnext].top().t_) )
+      {
+        success = updateFilterSys(input_queue_.top());
+        input_queue_.pop();
+      }
+      // If needed and next input is available,
+      // use next input to update system up to next measurement time.
+      if( success &&
+          (filter_time_<measurement_queues_[qnext].top().t_) &&
+          (!input_queue_.empty()) )
+      {
+        success = updateFilterSys(Input(measurement_queues_[qnext].top().t_,
+                                        input_queue_.top().u_));
+      }
+      // Correct state with next measurement.
+      if ( success )
+      {
+        success = updateFilterMeas(qnext, measurement_queues_[qnext].top());
+        measurement_queues_[qnext].pop();
+      }
+    }
+  }
   return success;
 }
 
