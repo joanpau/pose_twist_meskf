@@ -14,6 +14,8 @@
 #include <fstream>
 #include <string>
 #include <iomanip>
+#include <Eigen/Dense>
+#include <iterator>
 
 typedef std::map<double, pose_twist_meskf::PoseTwistMESKF::Vector> VectorSerie;
 
@@ -61,15 +63,15 @@ bool readInputs(std::istream& in_imu, VectorSerie* input_imu )
     else
     {
       double t = line[0];
-      pose_twist_meskf::PoseTwistMESKF::Vector v(6);
-      v = 0.0;
-      v(pose_twist_meskf::InputVector::LIN_ACC_X) = line[1];
-      v(pose_twist_meskf::InputVector::LIN_ACC_Y) = line[2];
-      v(pose_twist_meskf::InputVector::LIN_ACC_Z) = line[3];
-      v(pose_twist_meskf::InputVector::ANG_VEL_X) = line[4];
-      v(pose_twist_meskf::InputVector::ANG_VEL_Y) = line[5];
-      v(pose_twist_meskf::InputVector::ANG_VEL_Z) = line[6];
-      input_imu->insert(input_imu->end(),VectorSerie::value_type(t,v));
+      pose_twist_meskf::PoseTwistMESKF::Vector u(6);
+      u = 0.0;
+      u(pose_twist_meskf::InputVector::LIN_ACC_X) = line[1];
+      u(pose_twist_meskf::InputVector::LIN_ACC_Y) = line[2];
+      u(pose_twist_meskf::InputVector::LIN_ACC_Z) = line[3];
+      u(pose_twist_meskf::InputVector::ANG_VEL_X) = line[4];
+      u(pose_twist_meskf::InputVector::ANG_VEL_Y) = line[5];
+      u(pose_twist_meskf::InputVector::ANG_VEL_Z) = line[6];
+      input_imu->insert(input_imu->end(),VectorSerie::value_type(t,u));
     }
   }
   return ! input_imu->empty();
@@ -95,33 +97,23 @@ bool readMeasurements(std::istream& in_vicon, VectorSerie* input_vicon )
     else
     {
       double t = line[0];
-      pose_twist_meskf::PoseTwistMESKF::Vector u(pose_twist_meskf::VisualMeasurementVector::DIMENSION);
-      u = 0.0;
-      u(pose_twist_meskf::VisualMeasurementVector::POSITION_X) = line[1];
-      u(pose_twist_meskf::VisualMeasurementVector::POSITION_Y) = line[2];
-      u(pose_twist_meskf::VisualMeasurementVector::POSITION_Z) = line[3];
+      pose_twist_meskf::PoseTwistMESKF::Vector z(pose_twist_meskf::VisualMeasurementVector::DIMENSION);
+      z = 0.0;
+      z(pose_twist_meskf::VisualMeasurementVector::POSITION_X) = line[1];
+      z(pose_twist_meskf::VisualMeasurementVector::POSITION_Y) = line[2];
+      z(pose_twist_meskf::VisualMeasurementVector::POSITION_Z) = line[3];
       double roll = line[4];
       double pitch = line[5];
       double yaw = line[6];
       Eigen::Quaterniond q = RPYtoQuaternion(roll, pitch, yaw);
-      u(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_W) = q.w();
-      u(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_X) = q.x();
-      u(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_Y) = q.y();
-      u(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_Z) = q.z();
-      input_vicon->insert(input_vicon->end(),VectorSerie::value_type(t,u));
+      z(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_W) = q.w();
+      z(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_X) = q.x();
+      z(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_Y) = q.y();
+      z(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_Z) = q.z();
+      input_vicon->insert(input_vicon->end(),VectorSerie::value_type(t,z));
     }
   }
   return ! input_vicon->empty();
-}
-
-
-void filterMeasurements(VectorSerie* input_vicon, const int n = 10)
-{
-  VectorSerie filtered_vicon;
-  for (VectorSerie::const_iterator it = input_vicon->begin();
-       it != input_vicon->end(); std::advance(it,n))
-    filtered_vicon.insert(filtered_vicon.end(), *it);
-  *input_vicon = filtered_vicon;
 }
 
 
@@ -139,21 +131,75 @@ void computeVelocityAndAccelerationMeasurements(VectorSerie* input_vicon)
     if (curr == input_vicon->begin())
     {
       curr_z.ang_vel_ = Eigen::Vector3d::Zero();
-      curr_z.lin_vel_ = curr_z.orientation_.toRotationMatrix().transpose() *
-          (next_z.position_ - curr_z.position_) / dt;
+      curr_z.lin_vel_ = Eigen::Vector3d::Zero();
       curr_z.lin_acc_ = Eigen::Vector3d::Zero();
     }
-    Eigen::AngleAxis<double> aa(next_z.orientation_*curr_z.orientation_.inverse());
+    Eigen::AngleAxis<double> aa(curr_z.orientation_.inverse()*next_z.orientation_);
     next_z.ang_vel_ = aa.axis()*aa.angle() / dt;
-    next_z.lin_acc_ = curr_z.orientation_.toRotationMatrix().transpose() *
-                      2.0/(dt*dt) * (next_z.position_ - curr_z.position_ - dt * curr_z.orientation_.toRotationMatrix()*curr_z.lin_vel_ );
     next_z.lin_vel_ = next_z.orientation_.toRotationMatrix().transpose() *
-                      curr_z.orientation_.toRotationMatrix() *
-                      (curr_z.lin_vel_ + dt * curr_z.lin_acc_);
+                      (next_z.position_ - curr_z.position_) / dt;
+    next_z.lin_acc_ = (next_z.lin_vel_ - curr_z.lin_vel_) / dt;
     next_z.toVector(next->second);
   }
 }
 
+
+void filterInputs(VectorSerie* input_imu, const int n = 10)
+{
+  VectorSerie original_imu = *input_imu;
+  for (VectorSerie::iterator it = input_imu->begin();
+       it != input_imu->end();
+       it++)
+  {
+    pose_twist_meskf::PoseTwistMESKF::Vector u(6);
+    u = 0.0;
+    const int p = std::distance(input_imu->begin(), it);
+    VectorSerie::const_iterator first = original_imu.begin();
+    VectorSerie::const_iterator last = original_imu.begin();
+    std::advance(first, std::max(0,p-n));
+    std::advance(last, std::min(size_t(p+n), original_imu.size()));
+    const size_t w = std::distance(first, last);
+    for (VectorSerie::const_iterator jt = first; jt != last; jt++)
+    {
+      u += jt->second;
+    }
+    u /= w;
+  }
+}
+
+
+void filterMeasurements(VectorSerie* input_vicon, const int n = 10)
+{
+  VectorSerie original_vicon = *input_vicon;
+  for (VectorSerie::iterator it = input_vicon->begin();
+       it != input_vicon->end();
+       it++)
+  {
+    pose_twist_meskf::VisualMeasurementVector m;
+    m.fromVector(it->second);
+    m.ang_vel_ = Eigen::Vector3d::Zero();
+    m.lin_vel_ = Eigen::Vector3d::Zero();
+    m.lin_acc_ = Eigen::Vector3d::Zero();
+    const int p = std::distance(input_vicon->begin(), it);
+    VectorSerie::const_iterator first = original_vicon.begin();
+    VectorSerie::const_iterator last = original_vicon.begin();
+    std::advance(first, std::max(0,p-n));
+    std::advance(last, std::min(size_t(p+n), original_vicon.size()));
+    const size_t w = std::distance(first, last);
+    for (VectorSerie::const_iterator jt = first; jt != last; jt++)
+    {
+      pose_twist_meskf::VisualMeasurementVector s;
+      s.fromVector(jt->second);
+      m.ang_vel_ += s.ang_vel_;
+      m.lin_vel_ += s.lin_vel_;
+      m.lin_acc_ += s.lin_acc_;
+    }
+    m.ang_vel_ /= w;
+    m.lin_vel_ /= w;
+    m.lin_acc_ /= w;
+    m.toVector(it->second);
+  }
+}
 
 bool computeInputFromVicon(VectorSerie* imu, const VectorSerie& vicon)
 {
@@ -187,8 +233,14 @@ void writeEstimates(std::ostream& out, const VectorSerie& output)
     double t = it->first;
     pose_twist_meskf::NominalStateVector x;
     x.fromVector(it->second);
-    out << t << ' '
-        << x.position_(0) << ' ' << x.position_(1) << ' ' << x.position_(2)
+    out << std::setprecision(15) << std::fixed
+        << t
+        << ' ' << x.position_.transpose()
+        << ' ' << (x.orientation_.toRotationMatrix()*x.lin_vel_).transpose()
+        << ' ' << x.ang_vel_.transpose()
+        << ' ' << x.acc_bias_.transpose()
+        << ' ' << x.gyro_drift_.transpose()
+        << ' ' << x.orientation_.w() << ' ' << x.orientation_.vec().transpose()
         << '\n';
   }
 }
@@ -222,18 +274,20 @@ int main(int argc, char* argv[])
   if ( ! input_ok )
     return 1;
 
-//  filterMeasurements(&samples_vicon, 10);
   computeVelocityAndAccelerationMeasurements(&samples_vicon);
+
+  // filterInputs(&samples_imu, 1);
+  // filterMeasurements(&samples_vicon, 1);
 
 //  input_ok = computeInputFromVicon(&samples_imu, samples_vicon);
 //  if ( ! input_ok )
 //    return 1;
 
   const double TIME_STEP = 1e-1;
-  const double VAR_ACC = 100;
-  const double VAR_ACC_BIAS = 10; // 1e-2;
-  const double VAR_GYRO = 100;
-  const double VAR_GYRO_DRIFT = 10; // 1e-4;
+  const double VAR_ACC = 4e-4;
+  const double VAR_ACC_BIAS = 1e-1;
+  const double VAR_GYRO = 1e-4;
+  const double VAR_GYRO_DRIFT = 1e-6;
 
   pose_twist_meskf::PoseTwistMESKF filter;
 
@@ -261,10 +315,21 @@ int main(int argc, char* argv[])
   for (int i=1; i<pose_twist_meskf::ErrorStateVector::DIMENSION; i++)
     P0(i,i) = 1e-4;
   pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
-    Q(pose_twist_meskf::VisualMeasurementErrorVector::DIMENSION);
-  Q = 0.0;
-  for (int i=1; i<=pose_twist_meskf::VisualMeasurementErrorVector::DIMENSION; i++)
-    Q(i,i) = 1e-12;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::DIMENSION);
+  R = 0.0;
+  for (int i=0; i<3; i++)
+  {
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X) = 1e-2;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X) = 1e-4;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X) = 1e-4;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X) = 1e-4;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X) = 1e-8;
+  }
 
   double t = t0;
   pose_twist_meskf::PoseTwistMESKF::Vector x = x0;
@@ -285,7 +350,7 @@ int main(int argc, char* argv[])
       for (;tz_it != samples_vicon.end() && tz_it->first <= tu_it->first; tz_it++)
       {
         bool ok = filter.addMeasurement(pose_twist_meskf::PoseTwistMESKF::VISUAL,
-                                        tz_it->second, Q, tz_it->first);
+                                        tz_it->second, R, tz_it->first);
         if (ok)
           added_measurements++;
         else
@@ -297,7 +362,7 @@ int main(int argc, char* argv[])
       else
         std::clog << "Error adding input " << added_measurements+1 << ".\n";
     }
-    bool success = filter.update();
+    bool success = filter.updateAll();
     if (! success)
       std::cerr << "Filter update failure.\n";
     filter.getEstimate(x,P,t);
