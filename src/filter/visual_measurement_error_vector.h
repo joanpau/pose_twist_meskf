@@ -22,13 +22,14 @@ namespace pose_twist_meskf
 struct VisualMeasurementErrorVector
 {
   void fromVector(const MatrixWrapper::ColumnVector& e);
-  void toVector(MatrixWrapper::ColumnVector& e) const;
+  MatrixWrapper::ColumnVector toVector() const;
 
   Eigen::Vector3d d_position_;       //!< Position error estimate.
   Eigen::Vector3d d_lin_vel_;        //!< Linear velocity error estimate.
   Eigen::Vector3d d_orientation_;    //!< Orientation error estimate.
   Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error estimate.
   Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error estimate.
+
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the input vector

@@ -36,10 +36,11 @@ void pose_twist_meskf::VisualMeasurementVector::fromVector(const MatrixWrapper::
 
 /**
  * @brief Write the visual measurement entities to a BFL vector.
- * @param z vector to compose (should have the correct dimension).
+ * @return composed vector.
  */
-void pose_twist_meskf::VisualMeasurementVector::toVector(MatrixWrapper::ColumnVector& z) const
+MatrixWrapper::ColumnVector pose_twist_meskf::VisualMeasurementVector::toVector() const
 {
+  MatrixWrapper::ColumnVector z(DIMENSION);
   z(POSITION_X) = position_(0);
   z(POSITION_Y) = position_(1);
   z(POSITION_Z) = position_(2);
@@ -56,4 +57,5 @@ void pose_twist_meskf::VisualMeasurementVector::toVector(MatrixWrapper::ColumnVe
   z(ANG_VEL_X) = ang_vel_(0);
   z(ANG_VEL_Y) = ang_vel_(1);
   z(ANG_VEL_Z) = ang_vel_(2);
+  return z;
 }

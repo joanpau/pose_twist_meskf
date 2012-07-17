@@ -159,9 +159,7 @@ NominalStateSet(const MatrixWrapper::ColumnVector& x)
 MatrixWrapper::ColumnVector
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::NominalStateGet()
 {
-  MatrixWrapper::ColumnVector x(pose_twist_meskf::NominalStateVector::DIMESION);
-  nominal_state_.toVector(x);
-  return x;
+  return nominal_state_.toVector();
 }
 
 
@@ -258,9 +256,7 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::ExpectedValueGet() const
   error.d_orientation_ = TH*error.d_orientation_ + PS*error.d_gyro_drift_;
   // gyro_drift_ and acc_bias_ are constant, so their errors keep their value.
 
-  MatrixWrapper::ColumnVector e(pose_twist_meskf::ErrorStateVector::DIMENSION);
-  error.toVector(e);
-  return e;
+  return error.toVector();
 }
 
 

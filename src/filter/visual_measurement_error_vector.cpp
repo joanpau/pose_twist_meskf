@@ -35,10 +35,11 @@ void pose_twist_meskf::VisualMeasurementErrorVector::fromVector(const MatrixWrap
 
 /**
  * @brief Write the visual measurement error entities to a BFL vector.
- * @param e vector to compose (should have the correct dimension).
+ * @return composed vector.
  */
-void pose_twist_meskf::VisualMeasurementErrorVector::toVector(MatrixWrapper::ColumnVector& e) const
+MatrixWrapper::ColumnVector pose_twist_meskf::VisualMeasurementErrorVector::toVector() const
 {
+  MatrixWrapper::ColumnVector e(DIMENSION);
   e(D_POSITION_X) = d_position_(0);
   e(D_POSITION_Y) = d_position_(1);
   e(D_POSITION_Z) = d_position_(2);
@@ -54,4 +55,5 @@ void pose_twist_meskf::VisualMeasurementErrorVector::toVector(MatrixWrapper::Col
   e(D_GYRO_DRIFT_X) = d_gyro_drift_(0);
   e(D_GYRO_DRIFT_Y) = d_gyro_drift_(1);
   e(D_GYRO_DRIFT_Z) = d_gyro_drift_(2);
+  return e;
 }

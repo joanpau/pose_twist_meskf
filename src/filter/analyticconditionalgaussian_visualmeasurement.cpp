@@ -53,8 +53,7 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::ErrorMeasurement(
   error.d_acc_bias_ = measurement.lin_acc_ - nominal_state.lin_acc_;
   error.d_gyro_drift_ = nominal_state.ang_vel_ - measurement.ang_vel_;
   MatrixWrapper::ColumnVector e(pose_twist_meskf::ErrorStateVector::DIMENSION);
-  error.toVector(e);
-  return e;
+  return error.toVector();
 }
 
 
@@ -137,4 +136,3 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::Clone() const
 {
   return new AnalyticConditionalGaussianVisualMeasurement(*this);
 }
-

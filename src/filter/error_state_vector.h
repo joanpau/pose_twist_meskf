@@ -22,13 +22,14 @@ namespace pose_twist_meskf
 struct ErrorStateVector
 {
   void fromVector(const MatrixWrapper::ColumnVector& e);
-  void toVector(MatrixWrapper::ColumnVector& e) const;
+  MatrixWrapper::ColumnVector toVector() const;
 
   Eigen::Vector3d d_position_;       //!< Position error.
   Eigen::Vector3d d_lin_vel_;        //!< Linear velocity error.
   Eigen::Vector3d d_orientation_;    //!< Orientation error.
   Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error.
   Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error.
+
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the error state vector

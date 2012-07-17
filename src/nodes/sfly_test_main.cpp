@@ -139,7 +139,7 @@ void computeVelocityAndAccelerationMeasurements(VectorSerie* input_vicon)
     next_z.lin_vel_ = next_z.orientation_.toRotationMatrix().transpose() *
                       (next_z.position_ - curr_z.position_) / dt;
     next_z.lin_acc_ = (next_z.lin_vel_ - curr_z.lin_vel_) / dt;
-    next_z.toVector(next->second);
+    (next->second) = next_z.toVector();
   }
 }
 
@@ -197,7 +197,7 @@ void filterMeasurements(VectorSerie* input_vicon, const int n = 10)
     m.ang_vel_ /= w;
     m.lin_vel_ /= w;
     m.lin_acc_ /= w;
-    m.toVector(it->second);
+    (it->second) = m.toVector();
   }
 }
 
@@ -306,9 +306,7 @@ int main(int argc, char* argv[])
   nominal_state.ang_vel_ = measurement.ang_vel_;
   nominal_state.acc_bias_ = Eigen::Vector3d::Zero();
   nominal_state.gyro_drift_ = Eigen::Vector3d::Zero();
-  pose_twist_meskf::PoseTwistMESKF::Vector
-    x0(pose_twist_meskf::NominalStateVector::DIMESION);
-  nominal_state.toVector(x0);
+  pose_twist_meskf::PoseTwistMESKF::Vector x0 = nominal_state.toVector();
   pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
     P0(pose_twist_meskf::ErrorStateVector::DIMENSION);
   P0 = 0.0;

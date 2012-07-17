@@ -22,7 +22,7 @@ namespace pose_twist_meskf
 struct NominalStateVector
 {
   void fromVector(const MatrixWrapper::ColumnVector& x);
-  void toVector(MatrixWrapper::ColumnVector& x) const;
+  MatrixWrapper::ColumnVector toVector() const;
 
   Eigen::Vector3d position_;       //!< Position in reference frame.
   Eigen::Vector3d lin_vel_;        //!< Linear velocity in body-fixed frame.
@@ -31,10 +31,11 @@ struct NominalStateVector
   Eigen::Vector3d gyro_drift_;     //!< Gyroscopes' drift.
   Eigen::Vector3d lin_acc_;        //!< Linear acceleration in body-fixed frame.
   Eigen::Vector3d ang_vel_;        //!< Angular velocity in body-fixed frame.
+
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the nominal state vector
-  static const int DIMESION = 22;  //!< Nominal state vector dimension.
+  static const int DIMENSION = 22;  //!< Nominal state vector dimension.
   enum Index
   {
     POSITION_X = 1,
