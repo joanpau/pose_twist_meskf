@@ -24,10 +24,11 @@
   <depend package="nav_msgs"/>
   <depend package="memsense_imu"/>
   <depend package="srv_msgs"/>
-  <depend package="eigen" />
   <depend package="eigen_conversions" />
   <depend package="tf"/>
   <depend package="bfl"/>
   <depend package="nodelet"/>
+
+  <rosdep name="eigen" />
 
 </package>
