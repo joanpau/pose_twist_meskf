@@ -11,13 +11,13 @@
 #include "model/linearanalyticmeasurementmodel_gaussianuncertainty.h"
 #include "visual_measurement_error_vector.h"
 
+
 /**
  * @brief Default constructor doing nothing.
+ * @return
  *
  * After creating an object of the class,
  * the filter should be set up with the setUpFilter() function.
- *
- * @return
  */
 pose_twist_meskf::PoseTwistMESKF::PoseTwistMESKF()
 : filter_(0), system_model_(0), system_pdf_(0), system_prior_(0)
@@ -26,27 +26,20 @@ pose_twist_meskf::PoseTwistMESKF::PoseTwistMESKF()
 
 /**
  * @brief Destructor.
+ * @return
  *
  * Free dynamically allocated members if needed.
- *
- * @return
  */
 pose_twist_meskf::PoseTwistMESKF::~PoseTwistMESKF()
 {
-  if (system_model_)
-    delete system_model_;
-  if(system_pdf_)
-    delete system_pdf_;
-  if(system_prior_)
-    delete system_prior_;
-  if (filter_)
-    delete filter_;
+  delete system_model_;
+  delete system_pdf_;
+  delete system_prior_;
+  delete filter_;
   for (int i = measurement_models_.size()-1; i>=0; i--)
-    if(measurement_models_[i])
-      delete measurement_models_[i];
+    delete measurement_models_[i];
   for (int i = measurement_pdfs_.size()-1; i>=0; i--)
-    if(measurement_pdfs_[i])
-      delete measurement_pdfs_[i];
+    delete measurement_pdfs_[i];
 }
 
 
@@ -73,7 +66,7 @@ pose_twist_meskf::PoseTwistMESKF::getCovariance() const
 
 
 /**
- * Get the current state estimate.
+ * @brief Get the current state estimate.
  * @return current nominal state vector.
  */
 pose_twist_meskf::PoseTwistMESKF::Vector
@@ -109,12 +102,14 @@ void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
 void pose_twist_meskf::PoseTwistMESKF::setUpSystem(const double& acc_var,
                                                    const double& gyro_var,
                                                    const double& acc_bias_var,
-                                                   const double& gyro_drift_var)
+                                                   const double& gyro_drift_var,
+                                                   const Eigen::Vector3d& gravity)
 {
   system_pdf_ = new BFL::AnalyticConditionalGaussianPoseTwistErrorState(acc_var,
                                                                         gyro_var,
                                                                         acc_bias_var,
-                                                                        gyro_drift_var);
+                                                                        gyro_drift_var,
+                                                                        gravity);
   system_model_ = new BFL::AnalyticSystemModelGaussianUncertainty(system_pdf_);
 }
 
@@ -144,18 +139,16 @@ void pose_twist_meskf::PoseTwistMESKF::setUpMeasurementModels()
 
 /**
  * @brief Initialize the filter with the nominal state and the error-state covariance.
- *
- * Note that the error-state is implicitly initialized to zero.
- *
  * @param x initial nominal state value.
  * @param P error-state initial covariance.
  * @param t initial time.
+ *
+ * Note that the error-state is implicitly initialized to zero.
  */
 void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
                                                   const SymmetricMatrix& P,
                                                   const TimeStamp& t)
 {
-
   const int dim = system_pdf_->DimensionGet();
   Vector prior_mean(dim);
   SymmetricMatrix prior_cov(dim);
@@ -167,15 +160,15 @@ void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
   filter_time_ = t;
 }
 
+
 /**
  * @brief Add input reading to filter input queue.
- *
- * Given input must be strictly posterior to current filter time,
- * otherwise it is dropped.
- *
  * @param t input time.
  * @param u input value.
  * @return whether input has been added to queue.
+ *
+ * Given input must be strictly posterior to current filter time,
+ * otherwise it is dropped.
  */
 bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
                                                 const Vector& u)
@@ -198,7 +191,6 @@ bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
  * @param Q measurement covariance.
  * @return whether measurement has been added to queue.
  */
-
 bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
                                                       const Vector& z,
                                                       const SymmetricMatrix Q,
@@ -355,8 +347,11 @@ bool pose_twist_meskf::PoseTwistMESKF::updateAll()
   return success;
 }
 
+
 /**
  * @brief Update nominal and error state systems with given input.
+ * @param in input.
+ * @return whether the filter updated the system.
  *
  * The update is done inside the filter,
  * which updates the error state conditional pdf.
@@ -364,8 +359,6 @@ bool pose_twist_meskf::PoseTwistMESKF::updateAll()
  * (in the ExpectedValueGet function).
  * The current time is set to the input time.
  * The current input is updated too.
- * @param u input.
- * @return whether the filter updated the system (currently always true)
  */
 bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
 {
@@ -388,17 +381,15 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
 
 /**
  * @brief Correct nominal and error with given measurement.
+ * @param i index of the measurement.
+ * @param m measurement.
+ * @return whether the filter corrected the system.
  *
  * The error state correction given by the measurement is done by the filter.
  * The nominal state is corrected resetting the error state conditional pdf.
  * The filter time is supposed to be the same than the measurement time.
  * If not the system is not updated.
- *
- * @param i index of the measurement.
- * @param m measurement.
- * @return whether the filter corrected the system.
  */
-#include "error_state_vector.h"
 bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& i,
                                                         const Measurement& meas)
 {

@@ -29,12 +29,13 @@ namespace pose_twist_meskf
  * Every input and measurement is added to the respective queue
  * with the functions addInput() and addMeasurement().
  * The input and measurement processing is delayed
- * until a call to the function update(), when all inputs and measurements
+ * until a call to one of the update functions, when inputs and measurements
  * are processed sequentially according to its time stamp.
  * To use the class first set up the system model with setUpSystem() and
- * then set the the initial state with initialize().
+ * the measurement models with setUpMeasurements(), and set the the initial
+ * state with initialize().
  *
- * Details about the dynamic model and the measurent models may be found
+ * Details about the dynamic model and the measurement models may be found
  * in the documentation of the respective conditional pdf implementation.
  */
 class PoseTwistMESKF
@@ -62,7 +63,8 @@ public:
   void setUpSystem(const double& acc_var,
                    const double& gyro_var,
                    const double& acc_bias_var,
-                   const double& gyro_drift_var);
+                   const double& gyro_drift_var,
+                   const Eigen::Vector3d& gravity);
 
   void setUpMeasurementModels();
 
