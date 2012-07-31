@@ -40,9 +40,9 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::ErrorMeasurement(
   pose_twist_meskf::NominalStateVector nominal_state;
   nominal_state.fromVector(x);
   pose_twist_meskf::VisualMeasurementErrorVector error;
-  error.d_position_ = measurement.position_ - nominal_state.position_;
-  Eigen::AngleAxisd aa(nominal_state.orientation_.inverse() * measurement.orientation_);
-  error.d_orientation_ = aa.angle() * aa.axis();
+//  error.d_position_ = measurement.position_ - nominal_state.position_;
+//  Eigen::AngleAxisd aa(nominal_state.orientation_.inverse() * measurement.orientation_);
+//  error.d_orientation_ = aa.angle() * aa.axis();
   error.d_lin_vel_ = measurement.lin_vel_ - nominal_state.lin_vel_;
   // Gyrometers' drift and accelerometers' bias are tricky because they do not appear
   // explicitly in the nominal state. The update rules result from the following equations:
@@ -50,9 +50,8 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::ErrorMeasurement(
   // $a_t = R'g - (a_s - b_t) = R'g - (a_s - (b + db)) = R'g - (a_s - b) + db$
   // Gyroscopes' drift:
   // $w_t = w_s - d_t = w_s - (d - dd) = ws - d - dd$
-  error.d_acc_bias_ = measurement.lin_acc_ - nominal_state.lin_acc_;
+//  error.d_acc_bias_ = measurement.lin_acc_ - nominal_state.lin_acc_;
   error.d_gyro_drift_ = nominal_state.ang_vel_ - measurement.ang_vel_;
-  MatrixWrapper::ColumnVector e(pose_twist_meskf::ErrorStateVector::DIMENSION);
   return error.toVector();
 }
 
@@ -68,7 +67,11 @@ MatrixWrapper::ColumnVector BFL::AnalyticConditionalGaussianVisualMeasurement::
 ExpectedValueGet() const
 {
   pose_twist_meskf::ErrorStateVector error_state;
-  return ConditionalArgumentGet(0);
+  error_state.fromVector(ConditionalArgumentGet(0));
+  pose_twist_meskf::VisualMeasurementErrorVector measurement_error;
+  measurement_error.d_lin_vel_ = error_state.d_lin_vel_;
+  measurement_error.d_gyro_drift_ = error_state.d_gyro_drift_;
+  return measurement_error.toVector();
 }
 
 
@@ -95,17 +98,17 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::dfGet(unsigned int i) const
       for (int i=0; i<3; i++)
       {
         // Position:
-        H(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X + i,
-          pose_twist_meskf::ErrorStateVector::D_POSITION_X + i) = 1.0;
+//        H(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X + i,
+//          pose_twist_meskf::ErrorStateVector::D_POSITION_X + i) = 1.0;
         // Velocity:
         H(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X + i,
           pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1.0;
         // Orientation:
-        H(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i,
-          pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i) = 1.0;
+//        H(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i,
+//          pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i) = 1.0;
         // Accelerometers' bias:
-        H(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X + i,
-          pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i) = 1.0; // meas_acc - input_acc = db - R*skew(G_VEC)*dq.
+//        H(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X + i,
+//          pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i) = 1.0; // meas_acc - input_acc = db - R*skew(G_VEC)*dq.
         // Gyroscopes' bias:
         H(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i,
           pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i) = 1.0;
