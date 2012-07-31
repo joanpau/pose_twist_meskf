@@ -284,17 +284,42 @@ int main(int argc, char* argv[])
 //    return 1;
 
   const double TIME_STEP = 1e-1;
-  const double VAR_ACC = 4e-4;
-  const double VAR_ACC_BIAS = 1e-1;
+
+  const double G_CONS = 9.80665;
+  const Eigen::Vector3d G_VECT = Eigen::Vector3d(0.0,0.0,-G_CONS);
+
+  const double VAR_ACC = 4e-2;
+  const double VAR_ACC_BIAS = 1e-4;
   const double VAR_GYRO = 1e-4;
-  const double VAR_GYRO_DRIFT = 1e-6;
+  const double VAR_GYRO_DRIFT = 1e-8;
+
+  const double VAR_MEAS_LIN_VEL = 1e-4;
+  const double VAR_MEAS_ANG_VEL = 1e-8;
 
   pose_twist_meskf::PoseTwistMESKF filter;
 
-  filter.setUpSystem(VAR_ACC,VAR_GYRO,VAR_ACC_BIAS,VAR_GYRO_DRIFT);
-
+  // Filter setup.
+  filter.setUpSystem(VAR_ACC, VAR_GYRO, VAR_ACC_BIAS, VAR_GYRO_DRIFT, G_VECT);
   filter.setUpMeasurementModels();
+  // Visual measurement uncertainty.
+  pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
+    R(pose_twist_meskf::VisualMeasurementErrorVector::DIMENSION);
+  R = 0.0;
+  for (int i=0; i<3; i++)
+  {
+//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X,
+//      pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X) = 1e-2;
+//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X,
+//      pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X) = 1e-4;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X) = VAR_MEAS_LIN_VEL;
+//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X,
+//      pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X) = 1e-4;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X) = VAR_MEAS_ANG_VEL;
+  }
 
+  // Filter initialization.
   double t0 = samples_imu.begin()->first;
   pose_twist_meskf::VisualMeasurementVector measurement;
   measurement.fromVector(samples_vicon.begin()->second);
@@ -310,36 +335,31 @@ int main(int argc, char* argv[])
   pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
     P0(pose_twist_meskf::ErrorStateVector::DIMENSION);
   P0 = 0.0;
-  for (int i=1; i<pose_twist_meskf::ErrorStateVector::DIMENSION; i++)
-    P0(i,i) = 1e-4;
-  pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
-    R(pose_twist_meskf::VisualMeasurementErrorVector::DIMENSION);
-  R = 0.0;
-  for (int i=0; i<3; i++)
+  for (int i=1; i<3; i++)
   {
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X) = 1e-2;
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X) = 1e-4;
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X) = 1e-4;
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X) = 1e-4;
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X) = 1e-8;
+    P0(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+       pose_twist_meskf::ErrorStateVector::D_POSITION_X +i) = 1e-1;
+    P0(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X +i) = 1e-1;
+    P0(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X +i) = 1e-1;
+    P0(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X +i) = 1.0;
+    P0(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
+       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X +i) = 1.0;
   }
 
   double t = t0;
   pose_twist_meskf::PoseTwistMESKF::Vector x = x0;
   pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix P = P0;
-
   VectorSerie samples_filter;
-  filter.initialize(x, P, t);
   samples_filter.insert(samples_filter.end(),VectorSerie::value_type(t,x));
-  VectorSerie::const_iterator tu_it = ++samples_imu.begin();
-  VectorSerie::const_iterator tz_it = ++samples_vicon.begin();
+  filter.initialize(x, P, t);
+
   int added_measurements = 0;
   int added_inputs = 0;
+  VectorSerie::const_iterator tu_it = ++samples_imu.begin();
+  VectorSerie::const_iterator tz_it = ++samples_vicon.begin();
   while (tu_it != samples_imu.end())
   {
     t += TIME_STEP;
@@ -360,7 +380,7 @@ int main(int argc, char* argv[])
       else
         std::clog << "Error adding input " << added_measurements+1 << ".\n";
     }
-    bool success = filter.updateAll();
+    bool success = filter.update();
     if (! success)
       std::cerr << "Filter update failure.\n";
     filter.getEstimate(x,P,t);
