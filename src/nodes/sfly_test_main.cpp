@@ -201,6 +201,7 @@ void filterMeasurements(VectorSerie* input_vicon, const int n = 10)
   }
 }
 
+
 bool computeInputFromVicon(VectorSerie* imu, const VectorSerie& vicon)
 {
   imu->clear();
@@ -237,8 +238,8 @@ void writeEstimates(std::ostream& out, const VectorSerie& output)
         << t
         << ' ' << x.position_.transpose()
         << ' ' << (x.orientation_.toRotationMatrix()*x.lin_vel_).transpose()
-        << ' ' << x.ang_vel_.transpose()
         << ' ' << x.acc_bias_.transpose()
+        << ' ' << x.ang_vel_.transpose()
         << ' ' << x.gyro_drift_.transpose()
         << ' ' << x.orientation_.w() << ' ' << x.orientation_.vec().transpose()
         << '\n';
@@ -274,10 +275,10 @@ int main(int argc, char* argv[])
   if ( ! input_ok )
     return 1;
 
-  computeVelocityAndAccelerationMeasurements(&samples_vicon);
+//  computeVelocityAndAccelerationMeasurements(&samples_vicon);
 
-  // filterInputs(&samples_imu, 1);
-  // filterMeasurements(&samples_vicon, 1);
+//  filterInputs(&samples_imu, 1);
+//  filterMeasurements(&samples_vicon, 1);
 
 //  input_ok = computeInputFromVicon(&samples_imu, samples_vicon);
 //  if ( ! input_ok )
@@ -307,16 +308,16 @@ int main(int argc, char* argv[])
   R = 0.0;
   for (int i=0; i<3; i++)
   {
-//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X,
-//      pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X) = 1e-2;
-//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X,
-//      pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X) = 1e-4;
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X) = VAR_MEAS_LIN_VEL;
-//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X,
-//      pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X) = 1e-4;
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X) = VAR_MEAS_ANG_VEL;
+//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X + i,
+//      pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X + i) = 1e-2;
+//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i,
+//      pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i) = 1e-4;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X + i,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X + i) = VAR_MEAS_LIN_VEL;
+//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X + i,
+//      pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X + i) = 1e-4;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i) = VAR_MEAS_ANG_VEL;
   }
 
   // Filter initialization.
@@ -325,28 +326,29 @@ int main(int argc, char* argv[])
   measurement.fromVector(samples_vicon.begin()->second);
   pose_twist_meskf::NominalStateVector nominal_state;
   nominal_state.position_ = measurement.position_;
-  nominal_state.orientation_ = measurement.orientation_;
   nominal_state.lin_vel_ = measurement.lin_vel_;
+  nominal_state.acc_bias_ = Eigen::Vector3d::Zero();
+  nominal_state.orientation_ = measurement.orientation_;
+  nominal_state.gyro_drift_ = Eigen::Vector3d::Zero();
   nominal_state.lin_acc_ = measurement.lin_acc_;
   nominal_state.ang_vel_ = measurement.ang_vel_;
-  nominal_state.acc_bias_ = Eigen::Vector3d::Zero();
-  nominal_state.gyro_drift_ = Eigen::Vector3d::Zero();
+
   pose_twist_meskf::PoseTwistMESKF::Vector x0 = nominal_state.toVector();
   pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
     P0(pose_twist_meskf::ErrorStateVector::DIMENSION);
   P0 = 0.0;
-  for (int i=1; i<3; i++)
+  for (int i=0; i<3; i++)
   {
-    P0(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_POSITION_X +i) = 1e-1;
+//    P0(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+//       pose_twist_meskf::ErrorStateVector::D_POSITION_X + i) = 1e-1;
+//    P0(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+//       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1000; // 1e-1;
+//    P0(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+//       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i) = 1000; // 1.0;
     P0(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X +i) = 1e-1;
-    P0(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X +i) = 1e-1;
-    P0(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X +i) = 1.0;
+       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i) = 1e-1;
     P0(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
-       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X +i) = 1.0;
+       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i) = 1000; // 1.0;
   }
 
   double t = t0;
