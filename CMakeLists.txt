@@ -50,9 +50,13 @@ rosbuild_add_library(pose_twist_meskf
                        src/filter/analyticconditionalgaussian_visualmeasurement.cpp)
 
 include_directories(src/filter)
-rosbuild_add_executable(sfly_test 
-                          src/nodes/sfly_test_main.cpp)
-target_link_libraries(sfly_test pose_twist_meskf)
+#rosbuild_add_executable(sfly_test 
+#                          src/nodes/sfly_test_main.cpp)
+#target_link_libraries(sfly_test pose_twist_meskf)
+
+rosbuild_add_executable(simple_test 
+                          src/nodes/simple_test_main.cpp)
+target_link_libraries(simple_test pose_twist_meskf)
 
 rosbuild_add_executable(test_matrix 
                         src/nodes/test_matrix.cpp)

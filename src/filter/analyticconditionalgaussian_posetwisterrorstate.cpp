@@ -42,7 +42,7 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
                        MatrixWrapper::SymmetricMatrix& noise_covariance);
 Eigen::Matrix3d skew(const Eigen::Vector3d& v);
 //! Tolerance for small angle approximations.
-const double ANGULAR_RATE_EPSILON = 1E-3;
+const double ANGULAR_RATE_EPSILON = 0.0;
 
 
 /**
@@ -104,14 +104,14 @@ CorrectNominalState(const MatrixWrapper::ColumnVector& e)
   error.fromVector(e);
 
   // Correct the nominal state.
-  nominal_state_.position_ += error.d_position_;
-  nominal_state_.lin_vel_ += error.d_lin_vel_;
+//  nominal_state_.position_ += error.d_position_;
+//  nominal_state_.lin_vel_ += error.d_lin_vel_;
+//  nominal_state_.acc_bias_ += error.d_acc_bias_;
   nominal_state_.orientation_ *= Eigen::Quaterniond(Eigen::AngleAxisd(error.d_orientation_.norm(),
                                                                       error.d_orientation_.normalized()));
   // orientation_.normalize();
-  nominal_state_.acc_bias_ += error.d_acc_bias_;
   nominal_state_.gyro_drift_ += error.d_gyro_drift_;
-  nominal_state_.lin_acc_ += error.d_acc_bias_;
+//  nominal_state_.lin_acc_ += error.d_acc_bias_;
   nominal_state_.ang_vel_ -= error.d_gyro_drift_;
 }
 
@@ -275,7 +275,7 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
 {
   Eigen::Matrix3d R = nominal_state.orientation_.toRotationMatrix();
 
-  nominal_state.lin_acc_ = R.transpose()*g_vect - input.lin_acc_ + nominal_state.acc_bias_;
+//  nominal_state.lin_acc_ = R.transpose()*g_vect - input.lin_acc_ + nominal_state.acc_bias_;
   nominal_state.ang_vel_ = input.ang_vel_ - nominal_state.gyro_drift_;
 
   const double dt = input.time_incr_;
@@ -311,7 +311,7 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
       : ( - dt*I + (1-cos_angle)/rate2*S - (angle-sin_angle)/rate3*S2 );
 
   // Update the noise covariance matrix.
-  const Eigen::Matrix3d Qpp = 0.5*dt2*acc_var*I;
+  const Eigen::Matrix3d Qpp = 0.0*I; //0.5*dt2*acc_var*I;
   const Eigen::Matrix3d Qvv = dt*acc_var*I;
   const Eigen::Matrix3d Qqq = dt*gyro_var*I
                             + gyro_drift_var*
@@ -334,40 +334,50 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
   {
     for (int j=0; j<3; j++)
     {
-      // Position:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_POSITION_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_POSITION_X+j) = Qpp(i,j);
-      // Velocity:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+j) = Qvv(i,j);
+//      // Position:
+//      noise_covariance(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+//                       pose_twist_meskf::ErrorStateVector::D_POSITION_X + j) = Qpp(i,j);
+//      // Velocity:
+//      noise_covariance(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+//                       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = Qvv(i,j);
+//      // Accelerometers' bias:
+//      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+//                       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = Qbb(i,j);
       // Orientation:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqq(i,j);
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+j) = Qqd(i,j);
-      // Accelerometers' bias:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X+j) = Qbb(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = Qqq(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = Qqd(i,j);
       // Gyroscopes' drift:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+j) = Qdd(i,j);
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqd(j,i);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = Qdd(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = Qqd(j,i);
     }
   }
+  std::showpos(std::cerr);
+  std::cerr.precision(24);
+  std::cerr << "Noise covariance:" << '\n';
+  std::cerr << noise_covariance.sub(1,1,1,6) << '\n';
+  std::cerr << noise_covariance.sub(2,2,1,6) << '\n';
+  std::cerr << noise_covariance.sub(3,3,1,6) << '\n';
+  std::cerr << noise_covariance.sub(4,4,1,6) << '\n';
+  std::cerr << noise_covariance.sub(5,5,1,6) << '\n';
+  std::cerr << noise_covariance.sub(6,6,1,6) << '\n';
 
-  // Update the error state derivative matrix.
-  const Eigen::Matrix3d dp_dp = I;
-  const Eigen::Matrix3d dp_dq = - dt*R*skew(nominal_state.lin_vel_)
-                                + 0.5*dt2*R*skew(input.lin_acc_ - nominal_state.acc_bias_);
-  const Eigen::Matrix3d dp_dv = dt*R;
-  const Eigen::Matrix3d dp_db = 0.5*dt2*R;
-  const Eigen::Matrix3d dv_dv = I;
-  const Eigen::Matrix3d dv_dq = dt*skew(R.transpose()*g_vect);
-  const Eigen::Matrix3d dv_db = dt*I;
+
+//  // Update the error state derivative matrix.
+//  const Eigen::Matrix3d dp_dp = I;
+//  const Eigen::Matrix3d dp_dq = - dt*R*skew(nominal_state.lin_vel_)
+//                                + 0.5*dt2*R*skew(input.lin_acc_ - nominal_state.acc_bias_);
+//  const Eigen::Matrix3d dp_dv = dt*R;
+//  const Eigen::Matrix3d dp_db = 0.5*dt2*R;
+//  const Eigen::Matrix3d dv_dv = I;
+//  const Eigen::Matrix3d dv_dq = dt*skew(R.transpose()*g_vect);
+//  const Eigen::Matrix3d dv_db = dt*I;
+//  const Eigen::Matrix3d db_db = I;
   const Eigen::Matrix3d dq_dq = TH;
   const Eigen::Matrix3d dq_dd = PS;
-  const Eigen::Matrix3d db_db = I;
   const Eigen::Matrix3d dd_dd = I;
 
   error_state_derivative = 0.0;
@@ -375,53 +385,62 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
   {
     for (int j=0; j<3; j++)
     {
-      // Position:
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_POSITION_X + j) = dp_dp(i,j);
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dp_dq(i,j);
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dp_dv(i,j);
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dp_db(i,j);
-      // Velocity:
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dv_dv(i,j);
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dv_dq(i,j);
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dv_db(i,j);
+//      // Position:
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_POSITION_X + j) = dp_dp(i,j);
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dp_dq(i,j);
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dp_dv(i,j);
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dp_db(i,j);
+//      // Velocity:
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = dv_dv(i,j);
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dv_dq(i,j);
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dv_db(i,j);
+//      // Accelerometers' bias:
+//      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+//                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = db_db(i,j);
       // Orientation:
       error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
                              pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dq_dq(i,j);
       error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
                              pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dq_dd(i,j);
-      // Accelerometers' bias:
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = db_db(i,j);
       // Gyroscopes' drift:
       error_state_derivative(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
                              pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dd_dd(i,j);
     }
   }
+  std::showpos(std::cerr);
+  std::cerr.precision(24);
+  std::cerr << "Jacobian:" << '\n';
+  std::cerr << error_state_derivative.sub(1,1,1,6) << '\n';
+  std::cerr << error_state_derivative.sub(2,2,1,6) << '\n';
+  std::cerr << error_state_derivative.sub(3,3,1,6) << '\n';
+  std::cerr << error_state_derivative.sub(4,4,1,6) << '\n';
+  std::cerr << error_state_derivative.sub(5,5,1,6) << '\n';
+  std::cerr << error_state_derivative.sub(6,6,1,6) << '\n';
 
   // Update the error state.
   // If the error state is zero (it should be because of the reset)
   // the update will not change it.
   // However these are the equations:
-  error_state.d_position_ += dt*R*error_state.d_lin_vel_
-                          - dt*R*nominal_state.lin_vel_.cross(error_state.d_orientation_)
-                          + 0.5*dt2*R*(input.lin_acc_ - nominal_state.acc_bias_).cross(error_state.d_orientation_)
-                          + 0.5*dt2*R*error_state.d_acc_bias_;
-  error_state.d_lin_vel_ += dt*(R.transpose()*g_vect).cross(error_state.d_orientation_)
-                         + dt*error_state.d_acc_bias_;
+//  error_state.d_position_ += dt*R*error_state.d_lin_vel_
+//                          - dt*R*nominal_state.lin_vel_.cross(error_state.d_orientation_)
+//                          + 0.5*dt2*R*(input.lin_acc_ - nominal_state.acc_bias_).cross(error_state.d_orientation_)
+//                          + 0.5*dt2*R*error_state.d_acc_bias_;
+//  error_state.d_lin_vel_ += dt*(R.transpose()*g_vect).cross(error_state.d_orientation_)
+//                         + dt*error_state.d_acc_bias_;
   error_state.d_orientation_ = TH*error_state.d_orientation_ + PS*error_state.d_gyro_drift_;
   // Gyroscopes' drift and accelerometers' bias are constant,
   // so their errors keep their value.
 
   // Update the nominal state following the above rules.
-  nominal_state.position_ += R*(dt*nominal_state.lin_vel_ + 0.5*dt2*nominal_state.lin_acc_);
-  nominal_state.lin_vel_ += dt*nominal_state.lin_acc_;
+//  nominal_state.position_ += R*(dt*nominal_state.lin_vel_); // + 0.5*dt2*nominal_state.lin_acc_);
+//  nominal_state.lin_vel_ += dt*nominal_state.lin_acc_;
   nominal_state.orientation_*= Eigen::Quaterniond(angle_axis);
   // nominal_state_.orientation_.normalize();
   // Gyroscopes' drift and accelerometers' bias are constant,

@@ -26,8 +26,8 @@ struct VisualMeasurementVector
 
   Eigen::Vector3d position_;       //!< Position estimate.
   Eigen::Vector3d lin_vel_;        //!< Linear velocity estimate.
-  Eigen::Quaterniond orientation_; //!< Orientation estimate.
   Eigen::Vector3d lin_acc_;        //!< Linear acceleration in body-fixed frame.
+  Eigen::Quaterniond orientation_; //!< Orientation estimate.
   Eigen::Vector3d ang_vel_;        //!< Angular velocity in body-fixed frame.
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -42,13 +42,13 @@ struct VisualMeasurementVector
     LIN_VEL_X,
     LIN_VEL_Y,
     LIN_VEL_Z,
+    LIN_ACC_X,
+    LIN_ACC_Y,
+    LIN_ACC_Z,
     ORIENTATION_X,
     ORIENTATION_Y,
     ORIENTATION_Z,
     ORIENTATION_W,
-    LIN_ACC_X,
-    LIN_ACC_Y,
-    LIN_ACC_Z,
     ANG_VEL_X,
     ANG_VEL_Y,
     ANG_VEL_Z

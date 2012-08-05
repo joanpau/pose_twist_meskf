@@ -43,7 +43,7 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::ErrorMeasurement(
 //  error.d_position_ = measurement.position_ - nominal_state.position_;
 //  Eigen::AngleAxisd aa(nominal_state.orientation_.inverse() * measurement.orientation_);
 //  error.d_orientation_ = aa.angle() * aa.axis();
-  error.d_lin_vel_ = measurement.lin_vel_ - nominal_state.lin_vel_;
+//  error.d_lin_vel_ = measurement.lin_vel_ - nominal_state.lin_vel_;
   // Gyrometers' drift and accelerometers' bias are tricky because they do not appear
   // explicitly in the nominal state. The update rules result from the following equations:
   // Accelerometers' bias:
@@ -69,7 +69,7 @@ ExpectedValueGet() const
   pose_twist_meskf::ErrorStateVector error_state;
   error_state.fromVector(ConditionalArgumentGet(0));
   pose_twist_meskf::VisualMeasurementErrorVector measurement_error;
-  measurement_error.d_lin_vel_ = error_state.d_lin_vel_;
+//  measurement_error.d_lin_vel_ = error_state.d_lin_vel_;
   measurement_error.d_gyro_drift_ = error_state.d_gyro_drift_;
   return measurement_error.toVector();
 }
@@ -101,8 +101,8 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::dfGet(unsigned int i) const
 //        H(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X + i,
 //          pose_twist_meskf::ErrorStateVector::D_POSITION_X + i) = 1.0;
         // Velocity:
-        H(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X + i,
-          pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1.0;
+//        H(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X + i,
+//          pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1.0;
         // Orientation:
 //        H(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i,
 //          pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i) = 1.0;

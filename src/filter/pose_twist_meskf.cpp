@@ -390,14 +390,30 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
  * The filter time is supposed to be the same than the measurement time.
  * If not the system is not updated.
  */
+#include <iomanip>
 bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& i,
                                                         const Measurement& meas)
 {
   bool success = false;
+  std::cerr << "Prediction covariance at " << filter_time_ << ":\n";
+  std::showpos(std::cerr);
+  std::cerr.precision(24);
+  std::cerr << filter_->PostGet()->CovarianceGet().sub(1,1,1,6) << '\n';
+  std::cerr << filter_->PostGet()->CovarianceGet().sub(2,2,1,6) << '\n';
+  std::cerr << filter_->PostGet()->CovarianceGet().sub(3,3,1,6) << '\n';
+  std::cerr << filter_->PostGet()->CovarianceGet().sub(4,4,1,6) << '\n';
+  std::cerr << filter_->PostGet()->CovarianceGet().sub(5,5,1,6) << '\n';
+  std::cerr << filter_->PostGet()->CovarianceGet().sub(6,6,1,6) << '\n';
   if (meas.t_ == filter_time_)
   {
     Vector x = system_pdf_->NominalStateGet();
     measurement_pdfs_[i]->AdditiveNoiseSigmaSet(meas.Q_);
+    std::showpos(std::cerr);
+    std::cerr.precision(24);
+    std::cerr << "Measurement covariance:\n";
+    std::cerr << meas.Q_.sub(1,1,1,3) << '\n';
+    std::cerr << meas.Q_.sub(2,2,1,3) << '\n';
+    std::cerr << meas.Q_.sub(3,3,1,3) << '\n';
     success = filter_->Update(measurement_models_[i],
                               measurement_pdfs_[i]->ErrorMeasurement(meas.z_,x),
                               x);
