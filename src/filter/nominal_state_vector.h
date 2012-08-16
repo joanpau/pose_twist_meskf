@@ -26,9 +26,10 @@ struct NominalStateVector
 
   Eigen::Vector3d position_;       //!< Position in reference frame.
   Eigen::Vector3d lin_vel_;        //!< Linear velocity in body-fixed frame.
-  Eigen::Quaterniond orientation_; //!< Orientation in reference frame.
   Eigen::Vector3d acc_bias_;       //!< Accelerometers' bias.
+  Eigen::Quaterniond orientation_; //!< Orientation in reference frame.
   Eigen::Vector3d gyro_drift_;     //!< Gyroscopes' drift.
+
   Eigen::Vector3d lin_acc_;        //!< Linear acceleration in body-fixed frame.
   Eigen::Vector3d ang_vel_;        //!< Angular velocity in body-fixed frame.
 
@@ -44,13 +45,13 @@ struct NominalStateVector
     LIN_VEL_X,
     LIN_VEL_Y,
     LIN_VEL_Z,
+    ACC_BIAS_X,
+    ACC_BIAS_Y,
+    ACC_BIAS_Z,
     ORIENTATION_X,
     ORIENTATION_Y,
     ORIENTATION_Z,
     ORIENTATION_W,
-    ACC_BIAS_X,
-    ACC_BIAS_Y,
-    ACC_BIAS_Z,
     GYRO_DRIFT_X,
     GYRO_DRIFT_Y,
     GYRO_DRIFT_Z,

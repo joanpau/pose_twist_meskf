@@ -106,11 +106,12 @@ CorrectNominalState(const MatrixWrapper::ColumnVector& e)
   // Correct the nominal state.
   nominal_state_.position_ += error.d_position_;
   nominal_state_.lin_vel_ += error.d_lin_vel_;
+  nominal_state_.acc_bias_ += error.d_acc_bias_;
   nominal_state_.orientation_ *= Eigen::Quaterniond(Eigen::AngleAxisd(error.d_orientation_.norm(),
                                                                       error.d_orientation_.normalized()));
   // orientation_.normalize();
-  nominal_state_.acc_bias_ += error.d_acc_bias_;
   nominal_state_.gyro_drift_ += error.d_gyro_drift_;
+
   nominal_state_.lin_acc_ += error.d_acc_bias_;
   nominal_state_.ang_vel_ -= error.d_gyro_drift_;
 }
@@ -335,24 +336,24 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
     for (int j=0; j<3; j++)
     {
       // Position:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_POSITION_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_POSITION_X+j) = Qpp(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_POSITION_X + j) = Qpp(i,j);
       // Velocity:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X+j) = Qvv(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = Qvv(i,j);
       // Orientation:
       noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
                        pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqq(i,j);
       noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
                        pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+j) = Qqd(i,j);
       // Accelerometers' bias:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X+j) = Qbb(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = Qbb(i,j);
       // Gyroscopes' drift:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+j) = Qdd(i,j);
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqd(j,i);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = Qdd(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = Qqd(j,i);
     }
   }
 
@@ -365,9 +366,9 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
   const Eigen::Matrix3d dv_dv = I;
   const Eigen::Matrix3d dv_dq = dt*skew(R.transpose()*g_vect);
   const Eigen::Matrix3d dv_db = dt*I;
+  const Eigen::Matrix3d db_db = I;
   const Eigen::Matrix3d dq_dq = TH;
   const Eigen::Matrix3d dq_dd = PS;
-  const Eigen::Matrix3d db_db = I;
   const Eigen::Matrix3d dd_dd = I;
 
   error_state_derivative = 0.0;
@@ -391,14 +392,14 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
                              pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dv_dq(i,j);
       error_state_derivative(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
                              pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = dv_db(i,j);
-      // Orientation:
+      // Accelerometers' bias:
+      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = db_db(i,j);
+     // Orientation:
       error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
                              pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = dq_dq(i,j);
       error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
                              pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dq_dd(i,j);
-      // Accelerometers' bias:
-      error_state_derivative(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
-                             pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = db_db(i,j);
       // Gyroscopes' drift:
       error_state_derivative(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
                              pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = dd_dd(i,j);

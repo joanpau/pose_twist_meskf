@@ -275,7 +275,7 @@ int main(int argc, char* argv[])
   if ( ! input_ok )
     return 1;
 
-//  computeVelocityAndAccelerationMeasurements(&samples_vicon);
+  computeVelocityAndAccelerationMeasurements(&samples_vicon);
 
 //  filterInputs(&samples_imu, 1);
 //  filterMeasurements(&samples_vicon, 1);
@@ -292,10 +292,10 @@ int main(int argc, char* argv[])
   const double VAR_ACC = 4e-2;
   const double VAR_ACC_BIAS = 1e-4;
   const double VAR_GYRO = 1e-4;
-  const double VAR_GYRO_DRIFT = 1e-8;
+  const double VAR_GYRO_DRIFT = 1e-12;
 
-  const double VAR_MEAS_LIN_VEL = 1e-4;
-  const double VAR_MEAS_ANG_VEL = 1e-8;
+  const double VAR_MEAS_LIN_VEL = 1e-12;
+  const double VAR_MEAS_ANG_VEL = 1e-4 + 1e+14;
 
   pose_twist_meskf::PoseTwistMESKF filter;
 
@@ -339,12 +339,12 @@ int main(int argc, char* argv[])
   P0 = 0.0;
   for (int i=0; i<3; i++)
   {
-//    P0(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
-//       pose_twist_meskf::ErrorStateVector::D_POSITION_X + i) = 1e-1;
-//    P0(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-//       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1000; // 1e-1;
-//    P0(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
-//       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i) = 1000; // 1.0;
+    P0(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
+       pose_twist_meskf::ErrorStateVector::D_POSITION_X + i) = 1e-1;
+    P0(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
+       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1000; // 1e-1;
+    P0(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
+       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i) = 1000; // 1.0;
     P0(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
        pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i) = 1e-1;
     P0(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,

@@ -26,8 +26,8 @@ struct ErrorStateVector
 
   Eigen::Vector3d d_position_;       //!< Position error.
   Eigen::Vector3d d_lin_vel_;        //!< Linear velocity error.
-  Eigen::Vector3d d_orientation_;    //!< Orientation error.
   Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error.
+  Eigen::Vector3d d_orientation_;    //!< Orientation error.
   Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error.
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -42,12 +42,12 @@ struct ErrorStateVector
     D_LIN_VEL_X,
     D_LIN_VEL_Y,
     D_LIN_VEL_Z,
-    D_ORIENTATION_X,
-    D_ORIENTATION_Y,
-    D_ORIENTATION_Z,
     D_ACC_BIAS_X,
     D_ACC_BIAS_Y,
     D_ACC_BIAS_Z,
+    D_ORIENTATION_X,
+    D_ORIENTATION_Y,
+    D_ORIENTATION_Z,
     D_GYRO_DRIFT_X,
     D_GYRO_DRIFT_Y,
     D_GYRO_DRIFT_Z
