@@ -27,8 +27,8 @@ struct VisualMeasurementErrorVector
 //  Eigen::Vector3d d_position_;       //!< Position error estimate.
 //  Eigen::Vector3d d_lin_vel_;        //!< Linear velocity error estimate.
 //  Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error estimate.
-//  Eigen::Vector3d d_orientation_;    //!< Orientation error estimate.
-  Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error estimate.
+  Eigen::Vector3d d_orientation_;    //!< Orientation error estimate.
+//  Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error estimate.
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -45,9 +45,12 @@ struct VisualMeasurementErrorVector
 //    D_ACC_BIAS_X,
 //    D_ACC_BIAS_Y,
 //    D_ACC_BIAS_Z,
-    D_GYRO_DRIFT_X = 1,
-    D_GYRO_DRIFT_Y,
-    D_GYRO_DRIFT_Z
+    D_ORIENTATION_X = 1,
+    D_ORIENTATION_Y,
+    D_ORIENTATION_Z,
+//    D_GYRO_DRIFT_X = 1,
+//    D_GYRO_DRIFT_Y,
+//    D_GYRO_DRIFT_Z
   }; // enum
 
 }; // struct

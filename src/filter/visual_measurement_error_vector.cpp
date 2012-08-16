@@ -24,12 +24,12 @@ void pose_twist_meskf::VisualMeasurementErrorVector::fromVector(const MatrixWrap
 //  d_acc_bias_(0) = e(D_ACC_BIAS_X);
 //  d_acc_bias_(1) = e(D_ACC_BIAS_Y);
 //  d_acc_bias_(2) = e(D_ACC_BIAS_Z);
-//  d_orientation_.x() = e(D_ORIENTATION_X);
-//  d_orientation_.y() = e(D_ORIENTATION_Y);
-//  d_orientation_.z() = e(D_ORIENTATION_Z);
-  d_gyro_drift_(0) = e(D_GYRO_DRIFT_X);
-  d_gyro_drift_(1) = e(D_GYRO_DRIFT_Y);
-  d_gyro_drift_(2) = e(D_GYRO_DRIFT_Z);
+  d_orientation_.x() = e(D_ORIENTATION_X);
+  d_orientation_.y() = e(D_ORIENTATION_Y);
+  d_orientation_.z() = e(D_ORIENTATION_Z);
+//  d_gyro_drift_(0) = e(D_GYRO_DRIFT_X);
+//  d_gyro_drift_(1) = e(D_GYRO_DRIFT_Y);
+//  d_gyro_drift_(2) = e(D_GYRO_DRIFT_Z);
 }
 
 
@@ -49,11 +49,11 @@ MatrixWrapper::ColumnVector pose_twist_meskf::VisualMeasurementErrorVector::toVe
 //  e(D_ACC_BIAS_X) = d_acc_bias_(0);
 //  e(D_ACC_BIAS_Y) = d_acc_bias_(1);
 //  e(D_ACC_BIAS_Z) = d_acc_bias_(2);
-//  e(D_ORIENTATION_X) = d_orientation_.x();
-//  e(D_ORIENTATION_Y) = d_orientation_.y();
-//  e(D_ORIENTATION_Z) = d_orientation_.z();
-  e(D_GYRO_DRIFT_X) = d_gyro_drift_(0);
-  e(D_GYRO_DRIFT_Y) = d_gyro_drift_(1);
-  e(D_GYRO_DRIFT_Z) = d_gyro_drift_(2);
+  e(D_ORIENTATION_X) = d_orientation_.x();
+  e(D_ORIENTATION_Y) = d_orientation_.y();
+  e(D_ORIENTATION_Z) = d_orientation_.z();
+//  e(D_GYRO_DRIFT_X) = d_gyro_drift_(0);
+//  e(D_GYRO_DRIFT_Y) = d_gyro_drift_(1);
+//  e(D_GYRO_DRIFT_Z) = d_gyro_drift_(2);
   return e;
 }

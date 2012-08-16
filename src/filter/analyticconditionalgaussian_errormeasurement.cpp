@@ -7,7 +7,7 @@
  * for measurements in error state Kalman filtering.
  * It just adds a pure virtual member function
  * to convert nominal state measurement to an error state mesaurements.
-  */
+ */
 
 #include "analyticconditionalgaussian_errormeasurement.h"
 

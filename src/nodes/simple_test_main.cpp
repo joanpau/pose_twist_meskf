@@ -1,8 +1,6 @@
-/*
- * sfly_test_main.cpp
- *
- *  Created on: 06/09/2011
- *      Author: usuari
+/**
+ * @file
+ * @author Joan Pau Beltran
  */
 
 #include "pose_twist_meskf.h"
@@ -22,99 +20,6 @@
 #include <boost/random/variate_generator.hpp>
 
 typedef std::map<double, pose_twist_meskf::PoseTwistMESKF::Vector> VectorSerie;
-
-Eigen::Quaterniond RPYtoQuaternion(double roll, double pitch, double yaw)
-{
-  Eigen::Quaterniond r(Eigen::AngleAxisd(roll,Eigen::Vector3d::UnitX()));
-  Eigen::Quaterniond p(Eigen::AngleAxisd(pitch,Eigen::Vector3d::UnitY()));
-  Eigen::Quaterniond y(Eigen::AngleAxisd(yaw,Eigen::Vector3d::UnitZ()));
-  return y * p * r;
-}
-
-
-void computeVelocityAndAccelerationMeasurements(VectorSerie* input_vicon)
-{
-  VectorSerie::iterator curr, next;
-  for (next = input_vicon->begin(), curr = next++; next != input_vicon->end(); curr = next++)
-  {
-    const double curr_t = curr->first;
-    const double next_t = next->first;
-    const double dt = next_t - curr_t;
-    pose_twist_meskf::VisualMeasurementVector curr_z, next_z;
-    curr_z.fromVector(curr->second);
-    next_z.fromVector(next->second);
-    if (curr == input_vicon->begin())
-    {
-      curr_z.ang_vel_ = Eigen::Vector3d::Zero();
-      curr_z.lin_vel_ = Eigen::Vector3d::Zero();
-      curr_z.lin_acc_ = Eigen::Vector3d::Zero();
-    }
-    Eigen::AngleAxis<double> aa(curr_z.orientation_.inverse()*next_z.orientation_);
-    next_z.ang_vel_ = aa.axis()*aa.angle() / dt;
-    next_z.lin_vel_ = next_z.orientation_.toRotationMatrix().transpose() *
-                      (next_z.position_ - curr_z.position_) / dt;
-    next_z.lin_acc_ = (next_z.lin_vel_ - curr_z.lin_vel_) / dt;
-    (next->second) = next_z.toVector();
-  }
-}
-
-
-void filterInputs(VectorSerie* input_imu, const int n = 10)
-{
-  VectorSerie original_imu = *input_imu;
-  for (VectorSerie::iterator it = input_imu->begin();
-       it != input_imu->end();
-       it++)
-  {
-    pose_twist_meskf::PoseTwistMESKF::Vector u(6);
-    u = 0.0;
-    const int p = std::distance(input_imu->begin(), it);
-    VectorSerie::const_iterator first = original_imu.begin();
-    VectorSerie::const_iterator last = original_imu.begin();
-    std::advance(first, std::max(0,p-n));
-    std::advance(last, std::min(size_t(p+n), original_imu.size()));
-    const size_t w = std::distance(first, last);
-    for (VectorSerie::const_iterator jt = first; jt != last; jt++)
-    {
-      u += jt->second;
-    }
-    u /= w;
-  }
-}
-
-
-void filterMeasurements(VectorSerie* input_vicon, const int n = 10)
-{
-  VectorSerie original_vicon = *input_vicon;
-  for (VectorSerie::iterator it = input_vicon->begin();
-       it != input_vicon->end();
-       it++)
-  {
-    pose_twist_meskf::VisualMeasurementVector m;
-    m.fromVector(it->second);
-    m.ang_vel_ = Eigen::Vector3d::Zero();
-    m.lin_vel_ = Eigen::Vector3d::Zero();
-    m.lin_acc_ = Eigen::Vector3d::Zero();
-    const int p = std::distance(input_vicon->begin(), it);
-    VectorSerie::const_iterator first = original_vicon.begin();
-    VectorSerie::const_iterator last = original_vicon.begin();
-    std::advance(first, std::max(0,p-n));
-    std::advance(last, std::min(size_t(p+n), original_vicon.size()));
-    const size_t w = std::distance(first, last);
-    for (VectorSerie::const_iterator jt = first; jt != last; jt++)
-    {
-      pose_twist_meskf::VisualMeasurementVector s;
-      s.fromVector(jt->second);
-      m.ang_vel_ += s.ang_vel_;
-      m.lin_vel_ += s.lin_vel_;
-      m.lin_acc_ += s.lin_acc_;
-    }
-    m.ang_vel_ /= w;
-    m.lin_vel_ /= w;
-    m.lin_acc_ /= w;
-    (it->second) = m.toVector();
-  }
-}
 
 
 void writeEstimates(std::ostream& out, const VectorSerie& output)
@@ -156,18 +61,20 @@ int main(int argc, char* argv[])
   const double VAR_GYRO_DRIFT = 1e-9;
 
   const double VAR_MEAS_ANG_VEL = VAR_GYRO + 1e-12;
+  const double VAR_MEAS_ORIENTATION = 1e-4;
 
   const double LOCAL_ANG_VEL_RATE = 2.0 * M_PI * 0.1;
-  const Eigen::Vector3d LOCAL_ANG_VEL_AXIS(0.0, 1.0, 0.0);
+  const Eigen::Vector3d LOCAL_ANG_VEL_AXIS(0.0, 0.0, 1.0);
   const Eigen::Vector3d LOCAL_ANG_VEL_VECT = LOCAL_ANG_VEL_RATE*LOCAL_ANG_VEL_AXIS;
   const Eigen::Vector3d LOCAL_ANG_VEL_DRIFT = 2.0*M_PI * Eigen::Vector3d(0.01, 0.0, -0.02);
 
-  const size_t INSTANTS = 200;
-  const double TIME_STEP = 1e-1;
+  const size_t INSTANTS = 20;
+  const double TIME_STEP = 2.0 * M_PI / LOCAL_ANG_VEL_RATE / INSTANTS;
 
   boost::mt19937 rand_gen(static_cast<unsigned int>(std::time(0)));
   boost::normal_distribution<double> norm_dist(0.0, 1.0);
   boost::variate_generator<boost::mt19937&, boost::normal_distribution<double> > norm_var(rand_gen, norm_dist);
+  Eigen::Quaterniond orientation = Eigen::Quaterniond::Identity();
   for (size_t i=0; i<INSTANTS; i++)
   {
     const double time = i*TIME_STEP;
@@ -186,11 +93,13 @@ int main(int argc, char* argv[])
     samples_imu.insert(samples_imu.end(),
                        VectorSerie::value_type(time, input));
     const Eigen::Vector3d vicon_white_noise(norm_var(), norm_var(), norm_var());
-    const Eigen::Vector3d vicon_noise = sqrt(VAR_MEAS_ANG_VEL-VAR_GYRO)*vicon_white_noise;
+    const Eigen::Vector3d vicon_noise = sqrt(VAR_MEAS_ORIENTATION)*vicon_white_noise;
     pose_twist_meskf::VisualMeasurementVector measurement;
+    measurement.orientation_ = orientation * Eigen::Quaterniond(Eigen::AngleAxisd(vicon_noise.norm(), vicon_noise.normalized()));
     measurement.ang_vel_ = LOCAL_ANG_VEL_VECT + vicon_noise;
     samples_vicon.insert(samples_vicon.end(),
                          VectorSerie::value_type(time, measurement.toVector()));
+    orientation *= Eigen::Quaterniond(Eigen::AngleAxisd(LOCAL_ANG_VEL_RATE*TIME_STEP, LOCAL_ANG_VEL_AXIS));
   }
 
   std::clog << samples_imu.size() << " imu readings." << std::endl;
@@ -209,14 +118,14 @@ int main(int argc, char* argv[])
   {
 //    R(pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X + i,
 //      pose_twist_meskf::VisualMeasurementErrorVector::D_POSITION_X + i) = 1e-2;
-//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i,
-//      pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i) = 1e-4;
 //    R(pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X + i,
 //      pose_twist_meskf::VisualMeasurementErrorVector::D_LIN_VEL_X + i) = VAR_MEAS_LIN_VEL;
 //    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X + i,
 //      pose_twist_meskf::VisualMeasurementErrorVector::D_ACC_BIAS_X + i) = 1e-4;
-    R(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i,
-      pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i) = VAR_MEAS_ANG_VEL;
+    R(pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i,
+      pose_twist_meskf::VisualMeasurementErrorVector::D_ORIENTATION_X + i) = VAR_MEAS_ORIENTATION;
+//    R(pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i,
+//      pose_twist_meskf::VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i) = VAR_MEAS_ANG_VEL;
   }
 
   // Filter initialization.
