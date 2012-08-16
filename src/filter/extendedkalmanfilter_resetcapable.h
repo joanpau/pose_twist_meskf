@@ -1,5 +1,5 @@
 #ifndef __EXTENDED_KALMAN_FILTER_RESET_CAPABLE__
-#define __EXTENDED_KALMAN_FILTER_RESET_CAPABLE_
+#define __EXTENDED_KALMAN_FILTER_RESET_CAPABLE__
 
 #include <filter/extendedkalmanfilter.h>
 
