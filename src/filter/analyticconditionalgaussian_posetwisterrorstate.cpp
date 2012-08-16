@@ -341,14 +341,14 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
       // Velocity:
       noise_covariance(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
                        pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + j) = Qvv(i,j);
-      // Orientation:
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+j) = Qqq(i,j);
-      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X+i,
-                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X+j) = Qqd(i,j);
       // Accelerometers' bias:
       noise_covariance(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
                        pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + j) = Qbb(i,j);
+      // Orientation:
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + j) = Qqq(i,j);
+      noise_covariance(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
+                       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = Qqd(i,j);
       // Gyroscopes' drift:
       noise_covariance(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
                        pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + j) = Qdd(i,j);
