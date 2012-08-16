@@ -110,6 +110,9 @@ bool readMeasurements(std::istream& in_vicon, VectorSerie* input_vicon )
       z(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_X) = q.x();
       z(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_Y) = q.y();
       z(pose_twist_meskf::VisualMeasurementVector::ORIENTATION_Z) = q.z();
+      z(pose_twist_meskf::VisualMeasurementVector::ANG_VEL_X) = line[7];
+      z(pose_twist_meskf::VisualMeasurementVector::ANG_VEL_Y) = line[8];
+      z(pose_twist_meskf::VisualMeasurementVector::ANG_VEL_Z) = line[9];
       input_vicon->insert(input_vicon->end(),VectorSerie::value_type(t,z));
     }
   }
@@ -130,13 +133,13 @@ void computeVelocityAndAccelerationMeasurements(VectorSerie* input_vicon)
     next_z.fromVector(next->second);
     if (curr == input_vicon->begin())
     {
-      curr_z.ang_vel_ = Eigen::Vector3d::Zero();
+//      curr_z.ang_vel_ = Eigen::Vector3d::Zero();
       curr_z.lin_vel_ = Eigen::Vector3d::Zero();
       curr_z.lin_acc_ = Eigen::Vector3d::Zero();
     }
-    Eigen::AngleAxis<double> aa(curr_z.orientation_.inverse()*next_z.orientation_);
-    next_z.ang_vel_ = aa.axis()*aa.angle() / dt;
-    next_z.lin_vel_ = next_z.orientation_.toRotationMatrix().transpose() *
+//    Eigen::AngleAxis<double> aa(curr_z.orientation_.inverse()*next_z.orientation_);
+//    next_z.ang_vel_ = aa.axis()*aa.angle() / dt;
+    next_z.lin_vel_ = curr_z.orientation_.toRotationMatrix().transpose() *
                       (next_z.position_ - curr_z.position_) / dt;
     next_z.lin_acc_ = (next_z.lin_vel_ - curr_z.lin_vel_) / dt;
     (next->second) = next_z.toVector();
@@ -292,10 +295,10 @@ int main(int argc, char* argv[])
   const double VAR_ACC = 4e-2;
   const double VAR_ACC_BIAS = 1e-4;
   const double VAR_GYRO = 1e-4;
-  const double VAR_GYRO_DRIFT = 1e-12;
+  const double VAR_GYRO_DRIFT = 1e-8;
 
-  const double VAR_MEAS_LIN_VEL = 1e-12;
-  const double VAR_MEAS_ANG_VEL = 1e-4 + 1e+14;
+  const double VAR_MEAS_LIN_VEL = 1e-4;
+  const double VAR_MEAS_ANG_VEL = 1e-4 + 1e-8; //1e-4 + 1e+14;
 
   pose_twist_meskf::PoseTwistMESKF filter;
 
@@ -342,13 +345,13 @@ int main(int argc, char* argv[])
     P0(pose_twist_meskf::ErrorStateVector::D_POSITION_X + i,
        pose_twist_meskf::ErrorStateVector::D_POSITION_X + i) = 1e-1;
     P0(pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i,
-       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1000; // 1e-1;
+       pose_twist_meskf::ErrorStateVector::D_LIN_VEL_X + i) = 1e+12; // 1e-1;
     P0(pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i,
-       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i) = 1000; // 1.0;
+       pose_twist_meskf::ErrorStateVector::D_ACC_BIAS_X + i) = 1e+12; // 1.0;
     P0(pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i,
        pose_twist_meskf::ErrorStateVector::D_ORIENTATION_X + i) = 1e-1;
     P0(pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i,
-       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i) = 1000; // 1.0;
+       pose_twist_meskf::ErrorStateVector::D_GYRO_DRIFT_X + i) = 1e+12; // 1.0;
   }
 
   double t = t0;
