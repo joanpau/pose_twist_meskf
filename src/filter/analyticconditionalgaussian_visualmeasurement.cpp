@@ -58,10 +58,9 @@ BFL::AnalyticConditionalGaussianVisualMeasurement::ErrorMeasurement(
 
 /**
  * @brief Compute expected visual measurement error.
- * @return  expected measurement error conditioned to nominal and error state.
+ * @return expected measurement error conditioned to error state.
  *
  * The first conditional argument (index 0) is the error state.
- * The second conditional argument (index 1) must be the nominal state.
  */
 MatrixWrapper::ColumnVector BFL::AnalyticConditionalGaussianVisualMeasurement::
 ExpectedValueGet() const

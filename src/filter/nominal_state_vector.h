@@ -10,8 +10,8 @@
 #ifndef NOMINAL_STATE_VECTOR_H
 #define NOMINAL_STATE_VECTOR_H
 
-#include <wrappers/matrix/vector_wrapper.h> // BFL vector class
-#include <Eigen/Geometry> // Eigen vector and quaternion classes
+#include <wrappers/matrix/vector_wrapper.h> // BFL vector class.
+#include <Eigen/Geometry> // Eigen vector and quaternion classes.
 
 namespace pose_twist_meskf
 {
@@ -33,10 +33,12 @@ struct NominalStateVector
   Eigen::Vector3d lin_acc_;        //!< Linear acceleration in body-fixed frame.
   Eigen::Vector3d ang_vel_;        //!< Angular velocity in body-fixed frame.
 
+  double time_; //!< Current time (time of last input).
+
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the nominal state vector
-  static const int DIMENSION = 22;  //!< Nominal state vector dimension.
+  static const int DIMENSION = 23;  //!< Nominal state vector dimension.
   enum Index
   {
     POSITION_X = 1,
@@ -60,7 +62,8 @@ struct NominalStateVector
     LIN_ACC_Z,
     ANG_VEL_X,
     ANG_VEL_Y,
-    ANG_VEL_Z
+    ANG_VEL_Z,
+    TIME
   };  // enum
 
 }; // struct

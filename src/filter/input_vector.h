@@ -26,7 +26,7 @@ struct InputVector
 
   Eigen::Vector3d lin_acc_; //!< Accelerometers' reading.
   Eigen::Vector3d ang_vel_; //!< Gyroscopes' reading.
-  double time_incr_;        //!< Elapsed time since previous input.
+  double time_;             //!< Reading time stamp.
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -40,7 +40,7 @@ struct InputVector
     ANG_VEL_X,
     ANG_VEL_Y,
     ANG_VEL_Z,
-    TIME_INCR
+    TIME
   }; // enum
 
 }; // struct

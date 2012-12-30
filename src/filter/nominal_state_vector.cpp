@@ -37,6 +37,7 @@ void pose_twist_meskf::NominalStateVector::fromVector(const MatrixWrapper::Colum
   ang_vel_(0) = x(ANG_VEL_X);
   ang_vel_(1) = x(ANG_VEL_Y);
   ang_vel_(2) = x(ANG_VEL_Z);
+  time_ = x(TIME);
 }
 
 
@@ -70,5 +71,6 @@ pose_twist_meskf::NominalStateVector::toVector() const
   x(ANG_VEL_X) = ang_vel_(0);
   x(ANG_VEL_Y) = ang_vel_(1);
   x(ANG_VEL_Z) = ang_vel_(2);
+  x(TIME) = time_;
   return x;
 };

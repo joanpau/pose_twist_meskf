@@ -21,7 +21,7 @@ void pose_twist_meskf::InputVector::fromVector(const MatrixWrapper::ColumnVector
   ang_vel_(0) = u(ANG_VEL_X);
   ang_vel_(1) = u(ANG_VEL_Y);
   ang_vel_(2) = u(ANG_VEL_Z);
-  time_incr_  = u(TIME_INCR);
+  time_  = u(TIME);
 }
 
 
@@ -38,6 +38,6 @@ MatrixWrapper::ColumnVector pose_twist_meskf::InputVector::toVector() const
   u(ANG_VEL_X) = ang_vel_(0);
   u(ANG_VEL_Y) = ang_vel_(1);
   u(ANG_VEL_Z) = ang_vel_(2);
-  u(TIME_INCR) = time_incr_;
+  u(TIME) = time_;
   return u;
 }

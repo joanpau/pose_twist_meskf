@@ -56,7 +56,7 @@ AnalyticConditionalGaussianPoseTwistErrorState(const double& acc_var,
                                                const double& acc_bias_var,
                                                const double& gyro_drift_var,
                                                const Eigen::Vector3d& gravity)
-: AnalyticConditionalGaussian(pose_twist_meskf::ErrorStateVector::DIMENSION,2) // 2 conditional arguments
+: AnalyticConditionalGaussian(pose_twist_meskf::ErrorStateVector::DIMENSION, 2) // 2 conditional arguments
 , error_state_derivative_(pose_twist_meskf::ErrorStateVector::DIMENSION,
                           pose_twist_meskf::ErrorStateVector::DIMENSION)
 , noise_covariance_(pose_twist_meskf::ErrorStateVector::DIMENSION,
@@ -274,12 +274,14 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
                        MatrixWrapper::Matrix& error_state_derivative,
                        MatrixWrapper::SymmetricMatrix& noise_covariance)
 {
-  Eigen::Matrix3d R = nominal_state.orientation_.toRotationMatrix();
+  const double dt = input.time_ - nominal_state.time_;
+
+  const Eigen::Matrix3d R = nominal_state.orientation_.toRotationMatrix();
 
   nominal_state.lin_acc_ = R.transpose()*g_vect - input.lin_acc_ + nominal_state.acc_bias_;
   nominal_state.ang_vel_ = input.ang_vel_ - nominal_state.gyro_drift_;
+  nominal_state.time_ = input.time_;
 
-  const double dt = input.time_incr_;
   const double rate = nominal_state.ang_vel_.norm();
   const Eigen::Vector3d axis = nominal_state.ang_vel_.normalized();
   const double angle = dt*rate;

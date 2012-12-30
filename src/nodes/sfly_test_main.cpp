@@ -63,7 +63,7 @@ bool readInputs(std::istream& in_imu, VectorSerie* input_imu )
     else
     {
       double t = line[0];
-      pose_twist_meskf::PoseTwistMESKF::Vector u(6);
+      pose_twist_meskf::PoseTwistMESKF::Vector u(pose_twist_meskf::InputVector::DIMENSION);
       u = 0.0;
       u(pose_twist_meskf::InputVector::LIN_ACC_X) = line[1];
       u(pose_twist_meskf::InputVector::LIN_ACC_Y) = line[2];
@@ -71,6 +71,7 @@ bool readInputs(std::istream& in_imu, VectorSerie* input_imu )
       u(pose_twist_meskf::InputVector::ANG_VEL_X) = line[4];
       u(pose_twist_meskf::InputVector::ANG_VEL_Y) = line[5];
       u(pose_twist_meskf::InputVector::ANG_VEL_Z) = line[6];
+      u(pose_twist_meskf::InputVector::TIME) = t;
       input_imu->insert(input_imu->end(),VectorSerie::value_type(t,u));
     }
   }
@@ -154,7 +155,7 @@ void filterInputs(VectorSerie* input_imu, const int n = 10)
        it != input_imu->end();
        it++)
   {
-    pose_twist_meskf::PoseTwistMESKF::Vector u(6);
+    pose_twist_meskf::PoseTwistMESKF::Vector u(pose_twist_meskf::InputVector::DIMENSION);
     u = 0.0;
     const int p = std::distance(input_imu->begin(), it);
     VectorSerie::const_iterator first = original_imu.begin();
@@ -167,6 +168,7 @@ void filterInputs(VectorSerie* input_imu, const int n = 10)
       u += jt->second;
     }
     u /= w;
+    u(pose_twist_meskf::InputVector::TIME) = it->first;
   }
 }
 
@@ -224,6 +226,7 @@ bool computeInputFromVicon(VectorSerie* imu, const VectorSerie& vicon)
     u(pose_twist_meskf::InputVector::ANG_VEL_X) = w(0);
     u(pose_twist_meskf::InputVector::ANG_VEL_Y) = w(1);
     u(pose_twist_meskf::InputVector::ANG_VEL_Z) = w(2);
+    u(pose_twist_meskf::InputVector::TIME) = t;
     imu->insert(imu->end(),VectorSerie::value_type(t,u));
   }
   return true;
@@ -335,6 +338,7 @@ int main(int argc, char* argv[])
   nominal_state.gyro_drift_ = Eigen::Vector3d::Zero();
   nominal_state.lin_acc_ = measurement.lin_acc_;
   nominal_state.ang_vel_ = measurement.ang_vel_;
+  nominal_state.time_ = t0;
 
   pose_twist_meskf::PoseTwistMESKF::Vector x0 = nominal_state.toVector();
   pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix

@@ -149,15 +149,17 @@ void pose_twist_meskf::PoseTwistMESKF::initialize(const Vector& x,
                                                   const SymmetricMatrix& P,
                                                   const TimeStamp& t)
 {
+  filter_time_ = t;
+  system_pdf_->NominalStateSet(x);
   const int dim = system_pdf_->DimensionGet();
   Vector prior_mean(dim);
   SymmetricMatrix prior_cov(dim);
   prior_mean = 0.0;
   prior_cov = P;
+  delete(system_prior_);
+  delete(filter_);
   system_prior_ = new BFL::Gaussian(prior_mean, prior_cov);
   filter_ = new BFL::ExtendedKalmanFilterResetCapable(system_prior_);
-  system_pdf_->NominalStateSet(x);
-  filter_time_ = t;
 }
 
 
@@ -292,7 +294,6 @@ bool pose_twist_meskf::PoseTwistMESKF::update()
  */
 bool pose_twist_meskf::PoseTwistMESKF::updateAll()
 {
-
   bool success = true;
   bool all_queues_empty = false;
   while (success && !all_queues_empty)
@@ -362,18 +363,11 @@ bool pose_twist_meskf::PoseTwistMESKF::updateAll()
  */
 bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
 {
-  TimeStamp input_t = in.t_;
-  Vector input_val = in.u_;
-  int input_dim = input_val.rows();
-  Vector u(input_dim+1);
-  for (int i=1; i<=input_dim; i++)
-    u(i)=input_val(i);
-  u(input_dim+1) = input_t - filter_time_;
-  bool success = filter_->Update(system_model_,u);
+  bool success = filter_->Update(system_model_, in.u_);
   if (success)
   {
-    filter_time_ = input_t;
-    filter_input_ = input_val;
+    filter_time_ = in.t_;
+    filter_input_ = in.u_;
   }
   return success;
 }
@@ -399,8 +393,7 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& 
     Vector x = system_pdf_->NominalStateGet();
     measurement_pdfs_[i]->AdditiveNoiseSigmaSet(meas.Q_);
     success = filter_->Update(measurement_models_[i],
-                              measurement_pdfs_[i]->ErrorMeasurement(meas.z_,x),
-                              x);
+                              measurement_pdfs_[i]->ErrorMeasurement(meas.z_,x));
   }
   if (success)
   {
