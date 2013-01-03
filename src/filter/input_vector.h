@@ -22,11 +22,13 @@ namespace pose_twist_meskf
 struct InputVector
 {
   void fromVector(const MatrixWrapper::ColumnVector& u);
-  void toVector(MatrixWrapper::ColumnVector& u) const;
+  MatrixWrapper::ColumnVector toVector() const;
 
   Eigen::Vector3d lin_acc_; //!< Accelerometers' reading.
   Eigen::Vector3d ang_vel_; //!< Gyroscopes' reading.
-  double time_incr_;        //!< Elapsed time since previous input.
+  double time_;             //!< Reading time stamp.
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the input vector
   static const int DIMENSION = 7; //!< Input vector dimension.
@@ -38,7 +40,7 @@ struct InputVector
     ANG_VEL_X,
     ANG_VEL_Y,
     ANG_VEL_Z,
-    TIME_INCR
+    TIME
   }; // enum
 
 }; // struct

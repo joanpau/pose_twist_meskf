@@ -22,14 +22,18 @@ namespace pose_twist_meskf
 struct VisualMeasurementVector
 {
   void fromVector(const MatrixWrapper::ColumnVector& z);
-  void toVector(MatrixWrapper::ColumnVector& z) const;
+  MatrixWrapper::ColumnVector toVector() const;
 
   Eigen::Vector3d position_;       //!< Position estimate.
   Eigen::Vector3d lin_vel_;        //!< Linear velocity estimate.
+  Eigen::Vector3d lin_acc_;        //!< Linear acceleration in body-fixed frame.
   Eigen::Quaterniond orientation_; //!< Orientation estimate.
+  Eigen::Vector3d ang_vel_;        //!< Angular velocity in body-fixed frame.
 
-  // Index for the input vector
-  static const int DIMENSION = 10; //!< Visual measurement vector dimension.
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  // Index for the visual measurement vector
+  static const int DIMENSION = 16; //!< Visual measurement vector dimension.
   enum Index
   {
     POSITION_X = 1,
@@ -38,10 +42,16 @@ struct VisualMeasurementVector
     LIN_VEL_X,
     LIN_VEL_Y,
     LIN_VEL_Z,
+    LIN_ACC_X,
+    LIN_ACC_Y,
+    LIN_ACC_Z,
     ORIENTATION_X,
     ORIENTATION_Y,
     ORIENTATION_Z,
-    ORIENTATION_W
+    ORIENTATION_W,
+    ANG_VEL_X,
+    ANG_VEL_Y,
+    ANG_VEL_Z
   }; // enum
 
 }; // struct

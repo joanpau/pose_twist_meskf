@@ -21,26 +21,36 @@ namespace pose_twist_meskf
  */
 struct VisualMeasurementErrorVector
 {
-  void fromVector(const MatrixWrapper::ColumnVector& z);
-  void toVector(MatrixWrapper::ColumnVector& z) const;
+  void fromVector(const MatrixWrapper::ColumnVector& e);
+  MatrixWrapper::ColumnVector toVector() const;
 
-  Eigen::Vector3d d_position_;       //!< Position error estimate.
+//  Eigen::Vector3d d_position_;       //!< Position error estimate.
   Eigen::Vector3d d_lin_vel_;        //!< Linear velocity error estimate.
-  Eigen::Vector3d d_orientation_;    //!< Orientation error estimate.
+//  Eigen::Vector3d d_acc_bias_;       //!< Accelerometers' bias error estimate.
+//  Eigen::Vector3d d_orientation_;    //!< Orientation error estimate.
+  Eigen::Vector3d d_gyro_drift_;     //!< Gyroscopes' drift error estimate.
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   // Index for the input vector
-  static const int DIMENSION = 9; //!< Visual measurement error vector dimension.
+  static const int DIMENSION = 6; //!< Visual measurement error vector dimension.
   enum Index
   {
-    D_POSITION_X = 1,
-    D_POSITION_Y,
-    D_POSITION_Z,
-    D_LIN_VEL_X,
+//    D_POSITION_X = 1,
+//    D_POSITION_Y,
+//    D_POSITION_Z,
+    D_LIN_VEL_X = 1,
     D_LIN_VEL_Y,
     D_LIN_VEL_Z,
-    D_ORIENTATION_X,
-    D_ORIENTATION_Y,
-    D_ORIENTATION_Z
+//    D_ACC_BIAS_X,
+//    D_ACC_BIAS_Y,
+//    D_ACC_BIAS_Z,
+//    D_ORIENTATION_X,
+//    D_ORIENTATION_Y,
+//    D_ORIENTATION_Z,
+    D_GYRO_DRIFT_X,
+    D_GYRO_DRIFT_Y,
+    D_GYRO_DRIFT_Z
   }; // enum
 
 }; // struct

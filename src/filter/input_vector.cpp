@@ -21,21 +21,23 @@ void pose_twist_meskf::InputVector::fromVector(const MatrixWrapper::ColumnVector
   ang_vel_(0) = u(ANG_VEL_X);
   ang_vel_(1) = u(ANG_VEL_Y);
   ang_vel_(2) = u(ANG_VEL_Z);
-  time_incr_  = u(TIME_INCR);
+  time_  = u(TIME);
 }
 
 
 /**
  * @brief Write the input entities to a BFL vector.
- * @param u vector to compose (should have the correct dimension).
+ * @return composed vector.
  */
-void pose_twist_meskf::InputVector::toVector(MatrixWrapper::ColumnVector& u) const
+MatrixWrapper::ColumnVector pose_twist_meskf::InputVector::toVector() const
 {
+  MatrixWrapper::ColumnVector u(DIMENSION);
   u(LIN_ACC_X) = lin_acc_(0);
   u(LIN_ACC_Y) = lin_acc_(1);
   u(LIN_ACC_Z) = lin_acc_(2);
   u(ANG_VEL_X) = ang_vel_(0);
   u(ANG_VEL_Y) = ang_vel_(1);
   u(ANG_VEL_Z) = ang_vel_(2);
-  u(TIME_INCR) = time_incr_;
+  u(TIME) = time_;
+  return u;
 }

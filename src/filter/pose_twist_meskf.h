@@ -1,5 +1,5 @@
-/** @file
- *
+/**
+ * @file
  * @brief Pose twist error state extended Kalman filter
  * with multiplicative orientation error.
  *
@@ -13,9 +13,9 @@
 #include <wrappers/matrix/matrix_wrapper.h>
 #include <wrappers/matrix/vector_wrapper.h>
 #include <model/analyticsystemmodel_gaussianuncertainty.h>
-#include <model/analyticmeasurementmodel_gaussianuncertainty.h>
+#include <model/linearanalyticmeasurementmodel_gaussianuncertainty.h>
 #include "analyticconditionalgaussian_posetwisterrorstate.h"
-#include "linearanalyticconditionalgaussian_errormeasurement.h"
+#include "analyticconditionalgaussian_errormeasurement.h"
 #include "extendedkalmanfilter_resetcapable.h"
 
 namespace pose_twist_meskf
@@ -25,14 +25,18 @@ namespace pose_twist_meskf
  * @brief Multiplicative error-state Kalman filter class.
  *
  * The estimator has one internal queue for the inputs,
- * and one internal queue for each measurement.
+ * and one internal queue for each measurement type.
  * Every input and measurement is added to the respective queue
  * with the functions addInput() and addMeasurement().
  * The input and measurement processing is delayed
- * until a call to the function update(), when all inputs and measurements
+ * until a call to one of the update functions, when inputs and measurements
  * are processed sequentially according to its time stamp.
- * To use the class first set up the system model with setUpSystem.
- * Then the initial state should be set with initialize().
+ * To use the class first set up the system model with setUpSystem() and
+ * the measurement models with setUpMeasurements(), and set the the initial
+ * state with initialize().
+ *
+ * Details about the dynamic model and the measurement models may be found
+ * in the documentation of the respective conditional pdf implementation.
  */
 class PoseTwistMESKF
 {
@@ -59,15 +63,19 @@ public:
   void setUpSystem(const double& acc_var,
                    const double& gyro_var,
                    const double& acc_bias_var,
-                   const double& gyro_drift_var);
+                   const double& gyro_drift_var,
+                   const Eigen::Vector3d& gravity);
+
+  void setUpMeasurementModels();
 
   void initialize(const Vector& x, const SymmetricMatrix& P, const TimeStamp& t);
 
   bool addInput(const TimeStamp& t, const Vector& u);
-  bool addMeasurement(const MeasurementIndex& i, const TimeStamp& t,
-                      const Vector& z, const SymmetricMatrix Q);
+  bool addMeasurement(const MeasurementType& m, const Vector& z,
+                      const SymmetricMatrix Q, const TimeStamp& t);
 
-  void update();
+  bool update();
+  bool updateAll();
 
 private:
 
@@ -98,7 +106,7 @@ private:
   BFL::Gaussian*                                       system_prior_;
   std::priority_queue<Input>                           input_queue_;
 
-  std::vector< BFL::LinearAnalyticConditionalGaussianErrorMeasurement* > measurement_pdfs_;
+  std::vector< BFL::AnalyticConditionalGaussianErrorMeasurement* > measurement_pdfs_;
   std::vector< BFL::AnalyticMeasurementModelGaussianUncertainty* > measurement_models_;
   std::vector< std::priority_queue<Measurement> >                  measurement_queues_;
 
@@ -108,7 +116,6 @@ private:
 
   bool updateFilterSys(const Input& u);
   bool updateFilterMeas(const MeasurementIndex& i, const Measurement& m);
-  void setUpMeasurementModels();
 };
 
 } // namespace
