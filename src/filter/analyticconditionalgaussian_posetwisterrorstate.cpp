@@ -29,6 +29,12 @@
 #include "input_vector.h"
 
 
+//! Tolerance for small angle approximations.
+// Set to zero to disable small angle approximations.
+// That does not seem to cause big trouble, but check it.
+const double ANGULAR_RATE_EPSILON = 0.0;
+
+
 // Auxiliary function prototypes:
 void performFullUpdate(const Eigen::Vector3d& g_vect,
                        const double& acc_var,
@@ -41,8 +47,6 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
                        MatrixWrapper::Matrix& error_state_derivative,
                        MatrixWrapper::SymmetricMatrix& noise_covariance);
 Eigen::Matrix3d skew(const Eigen::Vector3d& v);
-//! Tolerance for small angle approximations.
-const double ANGULAR_RATE_EPSILON = 1E-3;
 
 
 /**
