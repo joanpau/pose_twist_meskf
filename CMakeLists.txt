@@ -7,10 +7,12 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 #  Release        : w/o debug symbols, w/ optimization
 #  RelWithDebInfo : w/ debug symbols, w/ optimization
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
-#set(ROS_BUILD_TYPE RelWithDebInfo)
-set(ROS_BUILD_TYPE Debug)
+set(ROS_BUILD_TYPE RelWithDebInfo)
 
 rosbuild_init()
+
+# Add extra compiler warnings:
+set(CMAKE_CXX_FLAGS "-Wall -Wextra" ${CMAKE_CXX_FLAGS})
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -50,10 +52,8 @@ rosbuild_add_library(pose_twist_meskf
                        src/filter/analyticconditionalgaussian_visualmeasurement.cpp)
 
 include_directories(src/filter)
-rosbuild_add_executable(sfly_test 
-                          src/nodes/sfly_test_main.cpp)
-target_link_libraries(sfly_test pose_twist_meskf)
 
-rosbuild_add_executable(test_matrix 
-                        src/nodes/test_matrix.cpp)
-target_link_libraries(test_matrix pose_twist_meskf)
+rosbuild_add_executable(test_sfly EXCLUDE_FROM_ALL 
+                          test/test_sfly_main.cpp)
+target_link_libraries(test_sfly
+                        pose_twist_meskf)

@@ -1,14 +1,14 @@
 #!/usr/bin/octave
-DATA = load('sfly_test_filter.txt');
+DATA = load('test_sfly_filter.txt');
 first = 1;
 step = 1;
-% last = end;
-T = DATA(first:step:end,1);
-P = DATA(first:step:end,2:4);
-V = DATA(first:step:end,5:7);
-B = DATA(first:step:end,8:10);
-W = DATA(first:step:end,11:13);
-D = DATA(first:step:end,14:16);
+last = size(DATA,1);
+T = DATA(first:step:last,1);
+P = DATA(first:step:last,2:4);
+V = DATA(first:step:last,5:7);
+B = DATA(first:step:last,8:10);
+W = DATA(first:step:last,11:13);
+D = DATA(first:step:last,14:16);
 
 T = T - T(1);
 
