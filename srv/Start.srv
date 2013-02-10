@@ -1,0 +1,16 @@
+# This service requests a pose and twist MESKF to start or reset 
+# its estimation with the given state and covariance.
+# The orientation covariance is the covariance of the orientation 
+# error expressed in angle-axis representation.
+
+time stamp                      # Timestamp of the initial estimate.
+geometry_msgs/Pose pose         # Initial pose estimate.
+geometry_msgs/Twist twist       # Initial twist estimate. 
+geometry_msgs/Vector3 bias_gyro # Initial gyroscopes' bias estimate.
+geometry_msgs/Vector3 bias_accl # Initial accelerometers' bias estimate.
+float64[36] covariance_pose     # Initial pose estimate covariance.
+float64[36] covariance_twist    # Initial twist estimate covariance.
+float64[36] covariance_bias     # Initial bias estimate covariance.
+---
+# The service callback returns true whenever the filter is started or reset.
+string status_message # Used to give details about last status.

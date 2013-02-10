@@ -1,0 +1,7 @@
+# This service requests a pose and twist MESKF to stop consuming
+# inputs and measurements and publishing combined estimates.
+
+---
+# The service callback returns true whenever the filter is stopped after the service.
+# (either when the filter was not started, or when it was started and has been stopped).
+string status_message # Used to give details about last state or failures.

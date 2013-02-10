@@ -10,7 +10,8 @@ docs/
 cfg/cpp/
 cfg/*.cfgc
 msg_gen/
-msg/lisp/
+srv_gen/
+src/pose_twist_meskf/
 
 # CMake files
 CMakeCache.txt
