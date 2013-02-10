@@ -55,7 +55,7 @@ public:
   PoseTwistMESKF();
   virtual ~PoseTwistMESKF();
 
-  TimeStamp getFilterTime() const;
+  TimeStamp getTime() const;
   SymmetricMatrix getCovariance() const;
   Vector getEstimate() const;
   void getEstimate(Vector& x, SymmetricMatrix& P, TimeStamp& t) const;

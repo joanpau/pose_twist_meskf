@@ -48,7 +48,7 @@ pose_twist_meskf::PoseTwistMESKF::~PoseTwistMESKF()
  * @return the time stamp of the last processed input.
  */
 pose_twist_meskf::PoseTwistMESKF::TimeStamp
-pose_twist_meskf::PoseTwistMESKF::getFilterTime() const
+pose_twist_meskf::PoseTwistMESKF::getTime() const
 {
   return filter_time_;
 };
@@ -88,7 +88,7 @@ void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
 {
   x = getEstimate();
   P = getCovariance();
-  t = getFilterTime();
+  t = getTime();
 }
 
 
