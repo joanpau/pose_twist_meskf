@@ -2,25 +2,51 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b pose_twist_meskf is ...
+The pose-twist MESKF package provides a Kalman filter based solution to full 3D
+pose and twist estimation for mobile vehicles with inertial sensors. Actually, 
+it provides both node and nodelet interfaces for a filter that combines 
+information from an inertial measurment unit (IMU) with odometry measurements 
+and depth or height measurements.
 
-<!--
-Provide an overview of your package.
--->
+The pose and twist estimation is done using an Extended Kalman Filter with 
+multiplicative orientation error. The filter is updated using IMU samples as 
+inputs (linear acceleration and angular velocity), and corrected with samples 
+from the other measurements. Gyroscope noise and accelerometer noise in IMU 
+samples are assumed to be isotropic, independent and constant in time. 
+Measurement uncertainty does not need to be constant, and should be provided 
+with each sample. Inputs and measurements are enqueued to ensure that they are 
+processed in chronological order, dealing with the possibly different delays of
+each sensor, and the filter state is updated and corrected at a regular rate.
+Finally, it may be initialized, reset or stopped through by service calls.
 
+
+\section nodes Nodes and nodelets
+
+Both node and nodelet versions of the base filter class are provided.
+For more information about the topics, services and parameters please 
+see the pose_twist_meskf::PoseTwistMESKFNodeBase class description.
 
 \section codeapi Code API
 
-<!--
-Provide links to specific auto-generated API documentation within your
-package that is of particular interest to a reader. Doxygen will
-document pretty much every part of your code, so do your best here to
-point the reader to the actual API.
+To avoid reinventing the wheel or adding a dependency not provided by ROS 
+distributions, the package uses the Orocos Bayesian Filtering Library (BFL).
+Please note that BFL does not support error state filters, and its design does
+not seem to allow adding them as a simple extension. Hence, the low level code 
+organization is quite hacky. To leverage the problem, all the estimation code is 
+encapsulated in a ROS independent library. ROS node and nodelet interfaces are 
+provided, sharing the same base code.
 
-If your codebase is fairly large or has different sets of APIs, you
-should use the doxygen 'group' tag to keep these APIs together. For
-example, the roscpp documentation has 'libros' group.
--->
+The package is organized as follows:
 
+- BFL classes provide the Kalman filtering computations (the math).
+- Low level classes (derived from BFL classes) implement the system model and 
+the measurement models, and provide some adaptions for error state filtering.
+- Class pose_twist_meskf::PoseTwistMESKF manages input and measurement queues 
+and filter initialization and updates.
+- Class pose_twist_meskf::PoseTwistMESKFNodeBase provides the common components
+of the ROS interface (parameters, topics and services, format conversions...).
+- Classes pose_twist_meskf::PoseTwistMESKFNode and 
+pose_twist_meskf::PoseTwistMESKFNodelet respectively provide the ROS node and 
+nodelet interface.
 
 */

@@ -6,10 +6,10 @@
      using inertial, depth (pressure) and visual sensors.
 
      Actually it is an implementation of an error-state Kalman filter (ESKF),
-     with multipiclative orientation error modelling.
+     with multipiclative orientation error model.
 
      Imu's gyroscope and accelerometer readings are treated as control inputs.
-     Visual pose estimates and depth (pressure) readings are treated as measurements.
+     Visual pose estimates and depth (from pressure) readings are treated as measurements.
 
      For portability the filter is implemented using the Bayesian Filter Library.
 
