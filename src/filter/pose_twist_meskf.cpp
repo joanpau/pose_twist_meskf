@@ -11,6 +11,12 @@
 #include "model/linearanalyticmeasurementmodel_gaussianuncertainty.h"
 #include "visual_measurement_error_vector.h"
 
+// Definition of measurement type constants.
+const pose_twist_meskf::PoseTwistMESKF::MeasurementIndex
+  pose_twist_meskf::PoseTwistMESKF::MEAS_VISUAL = 0;
+const int
+  pose_twist_meskf::PoseTwistMESKF::NUM_MEASUREMENT_TYPES = 1;
+
 
 /**
  * @brief Default constructor doing nothing.
@@ -98,12 +104,13 @@ void pose_twist_meskf::PoseTwistMESKF::getEstimate(Vector& x,
  * @param gyro_var gyroscope variance (same for all axes).
  * @param acc_bias_var accelerometer bias variance (same for all axes).
  * @param gyro_drift_var gyroscope bias variance (same for all axes).
+ * @param gravity standard gravity vector (in reference frame).
  */
-void pose_twist_meskf::PoseTwistMESKF::setUpSystem(const double& acc_var,
-                                                   const double& gyro_var,
-                                                   const double& acc_bias_var,
-                                                   const double& gyro_drift_var,
-                                                   const Eigen::Vector3d& gravity)
+void pose_twist_meskf::PoseTwistMESKF::setUpSystemModel(const double& acc_var,
+                                                        const double& gyro_var,
+                                                        const double& acc_bias_var,
+                                                        const double& gyro_drift_var,
+                                                        const Eigen::Vector3d& gravity)
 {
   system_pdf_ = new BFL::AnalyticConditionalGaussianPoseTwistErrorState(acc_var,
                                                                         gyro_var,
@@ -132,8 +139,8 @@ void pose_twist_meskf::PoseTwistMESKF::setUpMeasurementModels()
   // Covariance is set on measurement update,so it does not need initialization.
   BFL::AnalyticMeasurementModelGaussianUncertainty* visual_meas_model =
       new BFL::AnalyticMeasurementModelGaussianUncertainty(visual_meas_pdf);
-  measurement_pdfs_[VISUAL] = visual_meas_pdf;
-  measurement_models_[VISUAL] = visual_meas_model;
+  measurement_pdfs_[MEAS_VISUAL] = visual_meas_pdf;
+  measurement_models_[MEAS_VISUAL] = visual_meas_model;
 }
 
 
@@ -184,23 +191,23 @@ bool pose_twist_meskf::PoseTwistMESKF::addInput(const TimeStamp& t,
 
 /**
  * @brief Add measurement reading to corresponding filter measurement queue.
- *
- * Given measurement time must be equal or posterior to current filter time,
- * otherwise it is dropped.
- *
  * @param t measurement time.
  * @param z measurement value.
  * @param Q measurement covariance.
- * @return whether measurement has been added to queue.
+ * @param i measurement type.
+ * @return whether measurement has been added to corresponding queue.
+ *
+ * Given measurement time must be equal or posterior to current filter time,
+ * otherwise it is dropped.
  */
-bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const MeasurementType& m,
+bool pose_twist_meskf::PoseTwistMESKF::addMeasurement(const TimeStamp& t,
                                                       const Vector& z,
                                                       const SymmetricMatrix Q,
-                                                      const TimeStamp& t)
+                                                      const MeasurementIndex& i)
 {
   if (t<filter_time_)
     return false;
-  measurement_queues_[m].push(Measurement(t,z,Q));
+  measurement_queues_[i].push(Measurement(t,z,Q));
   return true;
 }
 
@@ -237,23 +244,23 @@ bool pose_twist_meskf::PoseTwistMESKF::update()
     {
       if (measurement_queues_[q].empty())
         empty_queue_found = true;
-      else if( measurement_queues_[q].top().t_ < measurement_queues_[qnext].top().t_ )
+      else if (measurement_queues_[q].top().t_ < measurement_queues_[qnext].top().t_)
         qnext = q;
     }
     // Update system only if there are no empty measurement queues.
-    if(!empty_queue_found)
+    if (!empty_queue_found)
     {
       // Predict state with available inputs prior to next measurement time.
-      while( success &&
+      while (success &&
              (!input_queue_.empty()) &&
-             (input_queue_.top().t_<=measurement_queues_[qnext].top().t_) )
+             (input_queue_.top().t_<=measurement_queues_[qnext].top().t_))
       {
         success = updateFilterSys(input_queue_.top());
         input_queue_.pop();
       }
       // If needed and next input is available,
       // use next input to update system up to next measurement time.
-      if( success &&
+      if (success &&
           (filter_time_<measurement_queues_[qnext].top().t_) &&
           (!input_queue_.empty()) )
       {
@@ -262,10 +269,9 @@ bool pose_twist_meskf::PoseTwistMESKF::update()
       }
       // Correct state with next measurement
       // only if system time reached measurement time.
-      if ( success &&
-           filter_time_ == measurement_queues_[qnext].top().t_ )
+      if (success && filter_time_ == measurement_queues_[qnext].top().t_)
       {
-        success = updateFilterMeas(qnext, measurement_queues_[qnext].top());
+        success = updateFilterMeas(measurement_queues_[qnext].top(), qnext);
         measurement_queues_[qnext].pop();
       }
     }
@@ -304,8 +310,8 @@ bool pose_twist_meskf::PoseTwistMESKF::updateAll()
       qnext--;
     for (int q = qnext-1; q >= 0; q--)
     {
-      if ( (!measurement_queues_[q].empty()) &&
-           (measurement_queues_[q].top().t_ < measurement_queues_[qnext].top().t_) )
+      if ((!measurement_queues_[q].empty()) &&
+          (measurement_queues_[q].top().t_ < measurement_queues_[qnext].top().t_))
         qnext = q;
     }
     // Process next measurement if any or all remaining inputs.
@@ -321,26 +327,26 @@ bool pose_twist_meskf::PoseTwistMESKF::updateAll()
     else
     {
       // Predict state with available inputs prior to next measurement time.
-      while( success &&
+      while (success &&
              (!input_queue_.empty()) &&
-             (input_queue_.top().t_<=measurement_queues_[qnext].top().t_) )
+             (input_queue_.top().t_<=measurement_queues_[qnext].top().t_))
       {
         success = updateFilterSys(input_queue_.top());
         input_queue_.pop();
       }
       // If needed and next input is available,
       // use next input to update system up to next measurement time.
-      if( success &&
+      if (success &&
           (filter_time_<measurement_queues_[qnext].top().t_) &&
-          (!input_queue_.empty()) )
+          (!input_queue_.empty()))
       {
         success = updateFilterSys(Input(measurement_queues_[qnext].top().t_,
                                         input_queue_.top().u_));
       }
       // Correct state with next measurement.
-      if ( success )
+      if (success)
       {
-        success = updateFilterMeas(qnext, measurement_queues_[qnext].top());
+        success = updateFilterMeas(measurement_queues_[qnext].top(), qnext);
         measurement_queues_[qnext].pop();
       }
     }
@@ -375,8 +381,8 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
 
 /**
  * @brief Correct nominal and error with given measurement.
+ * @param meas measurement.
  * @param i index of the measurement.
- * @param m measurement.
  * @return whether the filter corrected the system.
  *
  * The error state correction given by the measurement is done by the filter.
@@ -384,8 +390,8 @@ bool pose_twist_meskf::PoseTwistMESKF::updateFilterSys(const Input& in)
  * The filter time is supposed to be the same than the measurement time.
  * If not the system is not updated.
  */
-bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const MeasurementIndex& i,
-                                                        const Measurement& meas)
+bool pose_twist_meskf::PoseTwistMESKF::updateFilterMeas(const Measurement& meas,
+                                                        const MeasurementIndex& i)
 {
   bool success = false;
   if (meas.t_ == filter_time_)

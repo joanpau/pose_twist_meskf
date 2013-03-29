@@ -26,18 +26,18 @@ Both node and nodelet versions of the base filter class are provided.
 For more information about the topics, services and parameters please 
 see the pose_twist_meskf::PoseTwistMESKFNodeBase class description.
 
+
 \section codeapi Code API
 
 To avoid reinventing the wheel or adding a dependency not provided by ROS 
 distributions, the package uses the Orocos Bayesian Filtering Library (BFL).
 Please note that BFL does not support error state filters, and its design does
-not seem to allow adding them as a simple extension. Hence, the low level code 
-organization is quite hacky. To leverage the problem, all the estimation code is 
-encapsulated in a ROS independent library. ROS node and nodelet interfaces are 
-provided, sharing the same base code.
+not seem to allow adding these kind of filters as a simple extension.
+Hence, the low level code organization is quite hacky. To leverage the problem, 
+all the estimation code is encapsulated in a ROS independent library.
+ROS node and nodelet interfaces are provided, sharing the same base code.
 
 The package is organized as follows:
-
 - BFL classes provide the Kalman filtering computations (the math).
 - Low level classes (derived from BFL classes) implement the system model and 
 the measurement models, and provide some adaptions for error state filtering.
@@ -45,7 +45,7 @@ the measurement models, and provide some adaptions for error state filtering.
 and filter initialization and updates.
 - Class pose_twist_meskf::PoseTwistMESKFNodeBase provides the common components
 of the ROS interface (parameters, topics and services, format conversions...).
-- Classes pose_twist_meskf::PoseTwistMESKFNode and 
+- Main file pose_twist_meskf_node.cpp and class
 pose_twist_meskf::PoseTwistMESKFNodelet respectively provide the ROS node and 
 nodelet interface.
 

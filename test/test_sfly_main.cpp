@@ -306,7 +306,7 @@ int main(int argc, char* argv[])
   pose_twist_meskf::PoseTwistMESKF filter;
 
   // Filter setup.
-  filter.setUpSystem(VAR_ACC, VAR_GYRO, VAR_ACC_BIAS, VAR_GYRO_DRIFT, G_VECT);
+  filter.setUpSystemModel(VAR_ACC, VAR_GYRO, VAR_ACC_BIAS, VAR_GYRO_DRIFT, G_VECT);
   filter.setUpMeasurementModels();
   // Visual measurement uncertainty.
   pose_twist_meskf::PoseTwistMESKF::SymmetricMatrix
@@ -376,18 +376,18 @@ int main(int argc, char* argv[])
     {
       for (;tz_it != samples_vicon.end() && tz_it->first <= tu_it->first; tz_it++)
       {
-        bool ok = filter.addMeasurement(pose_twist_meskf::PoseTwistMESKF::VISUAL,
-                                        tz_it->second, R, tz_it->first);
+        bool ok = filter.addMeasurement(tz_it->first, tz_it->second, R,
+                                        pose_twist_meskf::PoseTwistMESKF::MEAS_VISUAL);
         if (ok)
           added_measurements++;
         else
           std::clog << "Error adding measurement " << added_measurements+1 << ".\n";
       }
-      bool ok = filter.addInput(tu_it->first,tu_it->second);
+      bool ok = filter.addInput(tu_it->first, tu_it->second);
       if (ok)
         added_inputs++;
       else
-        std::clog << "Error adding input " << added_measurements+1 << ".\n";
+        std::clog << "Error adding input " << added_measurements + 1 << ".\n";
     }
     bool success = filter.update();
     if (! success)

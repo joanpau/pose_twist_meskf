@@ -51,7 +51,11 @@ Eigen::Matrix3d skew(const Eigen::Vector3d& v);
 
 /**
  * @brief Default constructor.
- * @param noise additive system noise pdf.
+ * @param acc_var accelerometers' variance.
+ * @param gyro_var gyroscopes' variance.
+ * @param acc_bias_var accelerometer bias' variance.
+ * @param gyro_drift_var gyroscope drifts' variance.
+ * @param gravity standard gravity vector in reference frame.
  * @return
  */
 BFL::AnalyticConditionalGaussianPoseTwistErrorState::
@@ -208,8 +212,9 @@ BFL::AnalyticConditionalGaussianPoseTwistErrorState::CovarianceGet() const
  * @param g_vect standard gravity vector in reference frame.
  * @param acc_var accelerometers' variance.
  * @param gyro_var gyroscopes' variance.
- * @param acc_bias_var accelerometer bias' variance
- * @param gyro_drift_var gyroscope drifts' variance
+ * @param acc_bias_var accelerometer bias' variance.
+ * @param gyro_drift_var gyroscope drifts' variance.
+ * @param input input struct for system update.
  * @param error_state error state struct to be updated.
  * @param nominal_state nominal state struct to be updated.
  * @param error_state_derivative error error state derivative of the transition function to be computed.
@@ -439,7 +444,7 @@ void performFullUpdate(const Eigen::Vector3d& g_vect,
 /**
  * @brief Build the skew-symmetric matrix that computes the cross product.
  * @param v left vector in cross product.
- * @return matrix $M$ such that $M w = v \cross w$ for all $w$.
+ * @return matrix $M$ such that $M w = v \times w$ for all $w$.
  */
 Eigen::Matrix3d skew(const Eigen::Vector3d& v)
 {

@@ -13,8 +13,8 @@
 
 /**
  * @brief Constructor not setting measurement noise.
- * @param additive_noise pdf representing the additive Gaussian uncertainty.
  * @return
+ *
  * Additive noise parameters must be set later with AdditiveNoiseSigmaSet() and
  * AdditiveNoiseMuSet().
  */

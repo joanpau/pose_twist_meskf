@@ -45,12 +45,8 @@ public:
   typedef MatrixWrapper::SymmetricMatrix SymmetricMatrix;
   typedef double TimeStamp;
   typedef int MeasurementIndex;
-
-  enum MeasurementType
-  {
-    VISUAL
-  };
-  static const int NUM_MEASUREMENT_TYPES = 1;
+  static const MeasurementIndex MEAS_VISUAL;
+  static const int NUM_MEASUREMENT_TYPES;
 
   PoseTwistMESKF();
   virtual ~PoseTwistMESKF();
@@ -60,19 +56,19 @@ public:
   Vector getEstimate() const;
   void getEstimate(Vector& x, SymmetricMatrix& P, TimeStamp& t) const;
 
-  void setUpSystem(const double& acc_var,
-                   const double& gyro_var,
-                   const double& acc_bias_var,
-                   const double& gyro_drift_var,
-                   const Eigen::Vector3d& gravity);
+  void setUpSystemModel(const double& acc_var,
+                        const double& gyro_var,
+                        const double& acc_bias_var,
+                        const double& gyro_drift_var,
+                        const Eigen::Vector3d& gravity);
 
   void setUpMeasurementModels();
 
   void initialize(const Vector& x, const SymmetricMatrix& P, const TimeStamp& t);
 
   bool addInput(const TimeStamp& t, const Vector& u);
-  bool addMeasurement(const MeasurementType& m, const Vector& z,
-                      const SymmetricMatrix Q, const TimeStamp& t);
+  bool addMeasurement(const TimeStamp& t, const Vector& z,
+                      const SymmetricMatrix Q, const MeasurementIndex& i);
 
   bool update();
   bool updateAll();
@@ -113,9 +109,8 @@ private:
   Vector filter_input_;
   TimeStamp filter_time_;
 
-
-  bool updateFilterSys(const Input& u);
-  bool updateFilterMeas(const MeasurementIndex& i, const Measurement& m);
+  bool updateFilterSys(const Input& in);
+  bool updateFilterMeas(const Measurement& meas, const MeasurementIndex& i);
 };
 
 } // namespace

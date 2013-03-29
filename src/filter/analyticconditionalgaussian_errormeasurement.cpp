@@ -13,7 +13,7 @@
 
 /**
  * @brief Constructor bypassing its arguments to base conditional pdf constructor.
- * @param gaus additive Gaussian measurement noise pdf.
+ * @param additive_noise additive Gaussian measurement noise pdf.
  * @return
  */
 BFL::AnalyticConditionalGaussianErrorMeasurement::

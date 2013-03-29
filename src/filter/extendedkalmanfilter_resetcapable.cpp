@@ -14,13 +14,13 @@ namespace BFL
   {}
 
   void
-  ExtendedKalmanFilterResetCapable::PostSigmaSet( const SymmetricMatrix& s)
+  ExtendedKalmanFilterResetCapable::PostSigmaSet( const MatrixWrapper::SymmetricMatrix& s)
   {
     ExtendedKalmanFilter::PostSigmaSet(s);
   }
 
   void
-  ExtendedKalmanFilterResetCapable::PostMuSet( const ColumnVector& c)
+  ExtendedKalmanFilterResetCapable::PostMuSet( const MatrixWrapper::ColumnVector& c)
   {
     ExtendedKalmanFilter::PostMuSet(c);
   }

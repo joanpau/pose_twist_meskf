@@ -249,7 +249,7 @@ visualCallback(const nav_msgs::OdometryConstPtr& msg)
       covariance(VisualMeasurementErrorVector::D_GYRO_DRIFT_X + i,
                  VisualMeasurementErrorVector::D_GYRO_DRIFT_X + j) = msg->twist.covariance[6*i + j + 21];
     }
-  filter_.addMeasurement(filter_.VISUAL, measurement, covariance, timestamp);
+  filter_.addMeasurement(filter_.MEAS_VISUAL, measurement, covariance, timestamp);
 }
 
 
